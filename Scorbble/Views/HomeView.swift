@@ -8,6 +8,11 @@
 import SwiftUI
 
 struct HomeView: View {
+    // Navigation state
+    @State private var showGameSetup = false
+    @State private var showWordChecker = false
+    @State private var showPastGames = false
+    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -47,7 +52,7 @@ struct HomeView: View {
                             icon: "play.fill",
                             color: Color(hex: "4ade80")
                         ) {
-                            // TODO: Navigate to Game Setup
+                            showGameSetup = true
                         }
                         
                         MenuButton(
@@ -56,7 +61,7 @@ struct HomeView: View {
                             icon: "text.book.closed.fill",
                             color: Color(hex: "60a5fa")
                         ) {
-                            // TODO: Navigate to Word Checker
+                            showWordChecker = true
                         }
                         
                         MenuButton(
@@ -65,7 +70,7 @@ struct HomeView: View {
                             icon: "clock.fill",
                             color: Color(hex: "f472b6")
                         ) {
-                            // TODO: Navigate to Game History
+                            showPastGames = true
                         }
                     }
                     .padding(.horizontal, 24)
@@ -73,6 +78,10 @@ struct HomeView: View {
                     Spacer()
                     Spacer()
                 }
+            }
+            // Navigation destinations
+            .navigationDestination(isPresented: $showGameSetup) {
+                GameSetupView()
             }
         }
     }
