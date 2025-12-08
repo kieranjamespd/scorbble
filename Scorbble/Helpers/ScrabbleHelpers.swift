@@ -112,14 +112,38 @@ class WordValidator {
     private var usWords: Set<String> = []
     private var ukWords: Set<String> = []
     
+    // Track if we loaded from files
+    private var loadedFromFiles = false
+    
     init() {
         loadDictionaries()
     }
     
     private func loadDictionaries() {
-        // Combined word list - valid in both US and UK Scrabble
+        // Try to load from bundled text files first
+        if let usURL = Bundle.main.url(forResource: "twl_dictionary", withExtension: "txt"),
+           let usContent = try? String(contentsOf: usURL, encoding: .utf8) {
+            usWords = Set(usContent.lowercased().components(separatedBy: .newlines).filter { !$0.isEmpty })
+            loadedFromFiles = true
+            print("Loaded US dictionary: \(usWords.count) words")
+        }
+        
+        if let ukURL = Bundle.main.url(forResource: "sowpods_dictionary", withExtension: "txt"),
+           let ukContent = try? String(contentsOf: ukURL, encoding: .utf8) {
+            ukWords = Set(ukContent.lowercased().components(separatedBy: .newlines).filter { !$0.isEmpty })
+            loadedFromFiles = true
+            print("Loaded UK dictionary: \(ukWords.count) words")
+        }
+        
+        // Fall back to built-in word list if files not found
+        if usWords.isEmpty || ukWords.isEmpty {
+            loadBuiltInDictionary()
+        }
+    }
+    
+    private func loadBuiltInDictionary() {
+        // Built-in word list as fallback
         // This is a curated list of common valid Scrabble words
-        // In a production app, you'd load from a file
         
         let commonWords: Set<String> = [
             // 2-letter words (all valid 2-letter Scrabble words)
@@ -232,10 +256,104 @@ class WordValidator {
             "zebra", "zesty", "zilch", "zingy", "zippy", "zonal", "zones"
         ]
         
-        // For now, use the same list for both US and UK
-        // In a full implementation, you'd have separate lists
+        // US dictionary - American spellings only
         usWords = commonWords
-        ukWords = commonWords
+        
+        // UK dictionary - includes British spellings
+        // SOWPODS contains all US words PLUS British spellings
+        let britishSpellings: Set<String> = [
+            // -our spellings (UK) vs -or (US)
+            "colour", "colours", "coloured", "colouring",
+            "favour", "favours", "favoured", "favouring", "favourite", "favourites",
+            "honour", "honours", "honoured", "honouring", "honourable",
+            "labour", "labours", "laboured", "labouring", "labourer",
+            "neighbour", "neighbours", "neighbourhood",
+            "behaviour", "behaviours",
+            "flavour", "flavours", "flavoured", "flavouring",
+            "humour", "humours", "humoured", "humouring",
+            "rumour", "rumours", "rumoured",
+            "vapour", "vapours",
+            "vigour", "rigour", "rancour", "candour", "clamour", "glamour",
+            "armour", "armoured", "armoury",
+            "harbour", "harbours", "harboured",
+            "savour", "savours", "savoured", "savoury",
+            "odour", "odours",
+            
+            // -ise spellings (UK) vs -ize (US)
+            "realise", "realised", "realising",
+            "organise", "organised", "organising",
+            "recognise", "recognised", "recognising",
+            "apologise", "apologised", "apologising",
+            "specialise", "specialised", "specialising",
+            "criticise", "criticised", "criticising",
+            "emphasise", "emphasised", "emphasising",
+            "memorise", "memorised", "memorising",
+            "nationalise", "nationalised",
+            "privatise", "privatised",
+            "summarise", "summarised",
+            "symbolise", "symbolised",
+            "visualise", "visualised",
+            
+            // -re spellings (UK) vs -er (US)
+            "centre", "centres", "centred",
+            "theatre", "theatres",
+            "metre", "metres",
+            "litre", "litres",
+            "fibre", "fibres",
+            "calibre",
+            "sombre",
+            "lustre",
+            "spectre",
+            "sabre", "sabres",
+            "meagre",
+            
+            // -ogue spellings (UK) vs -og (US)
+            "catalogue", "catalogues", "catalogued",
+            "dialogue", "dialogues",
+            "analogue", "analogues",
+            "prologue", "prologues",
+            "epilogue", "epilogues",
+            
+            // Double L in UK
+            "travelling", "travelled", "traveller", "travellers",
+            "cancelling", "cancelled",
+            "labelling", "labelled",
+            "levelling", "levelled",
+            "modelling", "modelled",
+            "counselling", "counselled", "counsellor",
+            "marvelling", "marvelled", "marvellous",
+            "jewellery",
+            "woollen",
+            "skilful",
+            "wilful",
+            "fulfil",
+            
+            // Other UK spellings
+            "defence", "defences",
+            "offence", "offences",
+            "licence", "licences",
+            "pretence",
+            "practise", "practised", "practising",
+            "cheque", "cheques",
+            "grey",
+            "tyre", "tyres",
+            "plough", "ploughs", "ploughed",
+            "draught", "draughts", "draughty",
+            "gaol", "gaoled",
+            "kerb", "kerbs",
+            "aluminium",
+            "aeroplane", "aeroplanes",
+            "cosy", "cosier", "cosiest",
+            "pyjamas",
+            "moustache", "moustaches",
+            "storey", "storeys",
+            "furore",
+            "annexe",
+            "programme", "programmes"
+        ]
+        
+        // UK dictionary = common words + British spellings
+        ukWords = commonWords.union(britishSpellings)
     }
     
     /// Check if a word is valid in the current dictionary

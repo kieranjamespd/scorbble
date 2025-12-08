@@ -151,13 +151,12 @@ struct WordCheckerView: View {
                 
                 // Dictionary info
                 VStack(spacing: 4) {
-                    Text("Using sample dictionary (~5,000 words)")
+                    Text("Sample dictionary • Add full word lists for complete coverage")
                         .font(.caption2)
                         .foregroundColor(.white.opacity(0.3))
-                    Text("Full dictionary coming soon!")
-                        .font(.caption2)
-                        .foregroundColor(.white.opacity(0.2))
+                        .multilineTextAlignment(.center)
                 }
+                .padding(.horizontal, 24)
                 .padding(.bottom, 20)
             }
         }
