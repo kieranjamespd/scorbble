@@ -257,7 +257,10 @@ class WordValidator {
         ]
         
         // US dictionary - American spellings only
-        usWords = commonWords
+        if usWords.isEmpty {
+            usWords = commonWords
+            print("Loaded built-in US dictionary: \(usWords.count) words")
+        }
         
         // UK dictionary - includes British spellings
         // SOWPODS contains all US words PLUS British spellings
@@ -352,8 +355,11 @@ class WordValidator {
             "programme", "programmes"
         ]
         
-        // UK dictionary = common words + British spellings
-        ukWords = commonWords.union(britishSpellings)
+        // UK dictionary = common words + British spellings (only set if not loaded from file)
+        if ukWords.isEmpty {
+            ukWords = commonWords.union(britishSpellings)
+            print("Loaded built-in UK dictionary: \(ukWords.count) words")
+        }
     }
     
     /// Check if a word is valid in the current dictionary
