@@ -76,7 +76,17 @@ struct GameSetupView: View {
             }
         }
         .navigationDestination(isPresented: $showActiveGame) {
-            ActiveGameView(players: gamePlayers)
+            ActiveGameView(
+                onReturnHome: {
+                    // When user taps "Back to Home" after game ends,
+                    // First dismiss ActiveGameView, then after a brief delay dismiss GameSetupView
+                    showActiveGame = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        dismiss()
+                    }
+                },
+                players: gamePlayers
+            )
         }
     }
     

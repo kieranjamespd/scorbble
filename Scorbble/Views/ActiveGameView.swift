@@ -10,6 +10,9 @@ import SwiftUI
 struct ActiveGameView: View {
     @Environment(\.dismiss) var dismiss
     
+    // Callback to return all the way to home
+    var onReturnHome: (() -> Void)?
+    
     // Game state
     @State var players: [Player]
     @State private var currentPlayerIndex: Int = 0
@@ -106,6 +109,9 @@ struct ActiveGameView: View {
         .alert("End Game?", isPresented: $showEndGameAlert) {
             Button("Cancel", role: .cancel) { }
             Button("End Game", role: .destructive) {
+                // Save the game to history
+                GameStorage.shared.saveGame(players: players)
+                
                 withAnimation {
                     gameEnded = true
                 }
@@ -411,17 +417,52 @@ struct ActiveGameView: View {
     
     // MARK: - Game Over View
     
+    /// Check if the game is a tie
+    var isTieGame: Bool {
+        let highestScore = players.map { $0.score }.max() ?? 0
+        let topPlayers = players.filter { $0.score == highestScore }
+        return topPlayers.count > 1
+    }
+    
+    /// Get the winner (if not a tie)
+    var winner: Player? {
+        guard !isTieGame else { return nil }
+        return players.max(by: { $0.score < $1.score })
+    }
+    
+    /// Get the tied score
+    var tiedScore: Int {
+        players.map { $0.score }.max() ?? 0
+    }
+    
     var gameOverView: some View {
         VStack(spacing: 32) {
             Spacer()
             
-            // Trophy
-            Image(systemName: "trophy.fill")
+            // Icon - trophy for winner, handshake for tie
+            Image(systemName: isTieGame ? "hands.clap.fill" : "trophy.fill")
                 .font(.system(size: 80))
-                .foregroundColor(Color(hex: "fbbf24"))
+                .foregroundColor(isTieGame ? Color(hex: "60a5fa") : Color(hex: "fbbf24"))
             
-            // Winner announcement
-            if let winner = players.max(by: { $0.score < $1.score }) {
+            // Result announcement
+            if isTieGame {
+                // Tie game
+                VStack(spacing: 8) {
+                    Text("It's a Tie!")
+                        .font(.title2)
+                        .foregroundColor(.white.opacity(0.6))
+                    
+                    Text("Draw Game")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    Text("\(tiedScore) points each")
+                        .font(.title3)
+                        .foregroundColor(Color(hex: "60a5fa"))
+                }
+            } else if let winner = winner {
+                // Winner
                 VStack(spacing: 8) {
                     Text("Winner!")
                         .font(.title2)
@@ -475,18 +516,45 @@ struct ActiveGameView: View {
             
             Spacer()
             
-            // Back to home button
-            Button(action: { dismiss() }) {
-                Text("Back to Home")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(Color(hex: "1a1a2e"))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(hex: "4ade80"))
-                    )
+            // Action buttons
+            VStack(spacing: 12) {
+                // Play Again button
+                Button(action: { 
+                    // Go back to Game Setup to start a new game
+                    dismiss()
+                }) {
+                    Text("Play Again")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(hex: "1a1a2e"))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color(hex: "4ade80"))
+                        )
+                }
+                
+                // Back to Home button
+                Button(action: { 
+                    // Call the callback to go all the way home
+                    if let onReturnHome = onReturnHome {
+                        onReturnHome()
+                    } else {
+                        dismiss()
+                    }
+                }) {
+                    Text("Back to Home")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white.opacity(0.7))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                        )
+                }
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 40)

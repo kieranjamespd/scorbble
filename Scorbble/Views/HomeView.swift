@@ -86,6 +86,9 @@ struct HomeView: View {
             .navigationDestination(isPresented: $showWordChecker) {
                 WordCheckerView()
             }
+            .navigationDestination(isPresented: $showPastGames) {
+                PastGamesView()
+            }
         }
     }
     
