@@ -83,6 +83,9 @@ struct HomeView: View {
             .navigationDestination(isPresented: $showGameSetup) {
                 GameSetupView()
             }
+            .navigationDestination(isPresented: $showWordChecker) {
+                WordCheckerView()
+            }
         }
     }
     
