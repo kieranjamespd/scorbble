@@ -75,6 +75,16 @@ class ProfileStorage: ObservableObject {
         persistProfiles()
     }
     
+    /// Rename a profile (keeps all stats)
+    func renameProfile(id: UUID, newName: String) {
+        guard let index = profiles.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+        
+        profiles[index].name = newName
+        persistProfiles()
+    }
+    
     /// Get profiles sorted by most recently played
     var recentProfiles: [PlayerProfile] {
         profiles.sorted { profile1, profile2 in

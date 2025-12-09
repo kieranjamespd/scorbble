@@ -20,6 +20,10 @@ struct GameSetupView: View {
     @State private var showSuggestions = false
     @FocusState private var isNameFieldFocused: Bool
     
+    // Profile editing
+    @State private var profileToEdit: PlayerProfile? = nil
+    @State private var showProfileEditor = false
+    
     // Navigation to active game
     @State private var showActiveGame = false
     @State private var gamePlayers: [Player] = []
@@ -93,6 +97,11 @@ struct GameSetupView: View {
                 players: gamePlayers
             )
         }
+        .sheet(isPresented: $showProfileEditor) {
+            if let profile = profileToEdit {
+                ProfileEditorView(profile: profile)
+            }
+        }
     }
     
     // MARK: - Header
@@ -153,6 +162,26 @@ struct GameSetupView: View {
             .filter { !alreadyAddedNames.contains($0.name.lowercased()) }
     }
     
+    /// Check if typed name matches an existing profile
+    var matchingExistingProfile: PlayerProfile? {
+        let trimmed = newPlayerName.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !trimmed.isEmpty else { return nil }
+        return profileStorage.profiles.first { $0.name.lowercased() == trimmed }
+    }
+    
+    /// Check if typed name is already in the current game
+    var isNameAlreadyInGame: Bool {
+        let trimmed = newPlayerName.trimmingCharacters(in: .whitespaces).lowercased()
+        return players.contains { $0.name.lowercased() == trimmed }
+    }
+    
+    /// Can we add a new player with the typed name?
+    var canAddNewPlayer: Bool {
+        let trimmed = newPlayerName.trimmingCharacters(in: .whitespaces)
+        // Must have a name, not match existing profile, not already in game
+        return !trimmed.isEmpty && matchingExistingProfile == nil && !isNameAlreadyInGame
+    }
+    
     var addPlayerSection: some View {
         VStack(spacing: 20) {
             // Saved profiles chips (if any exist)
@@ -171,10 +200,18 @@ struct GameSetupView: View {
                                 ProfileChip(profile: profile) {
                                     selectProfile(profile)
                                 }
+                                .onLongPressGesture {
+                                    profileToEdit = profile
+                                    showProfileEditor = true
+                                }
                             }
                         }
                         .padding(.vertical, 2) // Prevents clipping of chip shadows
                     }
+                    
+                    Text("Long press to edit")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.3))
                 }
                 
                 // Divider between sections
@@ -221,61 +258,111 @@ struct GameSetupView: View {
                 .padding(.horizontal, 4)
                 
                 // Name input and add button
-                HStack(spacing: 12) {
-                    // Text field
-                    TextField("", text: $newPlayerName, prompt: Text("Enter name").foregroundColor(.white.opacity(0.3)))
-                        .font(.body)
-                        .foregroundColor(.white)
-                        .padding(16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.08))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                        )
-                        .focused($isNameFieldFocused)
-                    
-                    // Add button
-                    Button(action: addPlayer) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .bold))
+                VStack(spacing: 8) {
+                    HStack(spacing: 12) {
+                        // Text field
+                        TextField("", text: $newPlayerName, prompt: Text("Enter name").foregroundColor(.white.opacity(0.3)))
+                            .font(.body)
                             .foregroundColor(.white)
-                            .frame(width: 54, height: 54)
+                            .padding(16)
                             .background(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(Color(hex: "4ade80"))
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.white.opacity(0.08))
                             )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(matchingExistingProfile != nil ? Color(hex: "60a5fa").opacity(0.5) : Color.white.opacity(0.1), lineWidth: matchingExistingProfile != nil ? 2 : 1)
+                            )
+                            .focused($isNameFieldFocused)
+                        
+                        // Add button - disabled if name exists as profile or already in game
+                        Button(action: addPlayer) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(width: 54, height: 54)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(canAddNewPlayer ? Color(hex: "4ade80") : Color.gray.opacity(0.3))
+                                )
+                        }
+                        .disabled(!canAddNewPlayer)
+                        .opacity(canAddNewPlayer ? 1 : 0.5)
                     }
-                    .disabled(newPlayerName.trimmingCharacters(in: .whitespaces).isEmpty)
-                    .opacity(newPlayerName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
+                    
+                    // Hint message for existing profiles
+                    if let existingProfile = matchingExistingProfile {
+                        if isNameAlreadyInGame {
+                            // Already in this game
+                            HStack(spacing: 6) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .font(.caption)
+                                Text("\(existingProfile.name) is already in this game")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(Color(hex: "f87171"))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            // Exists as profile - tap to add
+                            Button(action: { 
+                                selectProfile(existingProfile)
+                                newPlayerName = "" // Clear text field
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "person.fill.checkmark")
+                                        .font(.caption)
+                                    Text("\(existingProfile.name) exists — tap to add")
+                                        .font(.caption)
+                                    Spacer()
+                                    Image(systemName: "arrow.right.circle.fill")
+                                        .font(.caption)
+                                }
+                                .foregroundColor(Color(hex: "60a5fa"))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color(hex: "60a5fa").opacity(0.1))
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
     
     /// Select a profile from chips - adds player directly
+    /// Returning players get priority for their preferred color
     func selectProfile(_ profile: PlayerProfile) {
-        guard !availableColors.isEmpty else { return }
+        // Check if we can add more players
+        guard players.count < 4 else { return }
         
-        // Use their preferred color if available, otherwise first available
-        let colorName: String
-        if availableColors.contains(profile.preferredColorName) {
-            colorName = profile.preferredColorName
-        } else {
-            colorName = availableColors.first ?? "blue"
-        }
-        
-        let newPlayer = PlayerSetup(name: profile.name, colorName: colorName)
+        let preferredColor = profile.preferredColorName
         
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            players.append(newPlayer)
-        }
-        
-        // Update their preferred color if it changed
-        if colorName != profile.preferredColorName {
-            profileStorage.updatePreferredColor(for: profile.name, colorName: colorName)
+            // Check if their preferred color is available
+            if availableColors.contains(preferredColor) {
+                // Great! They get their preferred color
+                let newPlayer = PlayerSetup(name: profile.name, colorName: preferredColor)
+                players.append(newPlayer)
+            } else {
+                // Their color is taken - find who has it and swap
+                if let takenIndex = players.firstIndex(where: { $0.colorName == preferredColor }) {
+                    // Give the existing player a new available color
+                    let newColorForExisting = availableColors.first ?? "blue"
+                    players[takenIndex].colorName = newColorForExisting
+                    
+                    // Now add the profile player with their preferred color
+                    let newPlayer = PlayerSetup(name: profile.name, colorName: preferredColor)
+                    players.append(newPlayer)
+                } else {
+                    // Fallback: just use first available color
+                    let fallbackColor = availableColors.first ?? Player.availableColors.first ?? "blue"
+                    let newPlayer = PlayerSetup(name: profile.name, colorName: fallbackColor)
+                    players.append(newPlayer)
+                }
+            }
         }
     }
     
