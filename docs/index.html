@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scorbble - Scrabble Score Keeper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            line-height: 1.7;
+        }
+        
+        .container {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 80px 24px;
+            text-align: center;
+        }
+        
+        .logo {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            margin-bottom: 24px;
+        }
+        
+        .tile {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(145deg, #faf6ed 0%, #e8e0cc 100%);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a2e;
+            box-shadow: 0 3px 0 #c4b896, 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 12px;
+        }
+        
+        .tagline {
+            font-size: 1.25rem;
+            color: #888;
+            margin-bottom: 48px;
+        }
+        
+        .features {
+            display: grid;
+            gap: 24px;
+            text-align: left;
+            margin-bottom: 48px;
+        }
+        
+        .feature {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .feature h3 {
+            color: #4ade80;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+        
+        .feature p {
+            color: #a0a0a0;
+            font-size: 0.95rem;
+        }
+        
+        .app-store-badge {
+            margin: 40px 0;
+        }
+        
+        .app-store-badge img {
+            height: 54px;
+        }
+        
+        .links {
+            margin-top: 60px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .links a {
+            color: #60a5fa;
+            text-decoration: none;
+            margin: 0 16px;
+            font-size: 0.95rem;
+        }
+        
+        .links a:hover {
+            text-decoration: underline;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            color: #555;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <div class="tile">S</div>
+            <div class="tile">C</div>
+            <div class="tile">O</div>
+            <div class="tile">R</div>
+            <div class="tile">B</div>
+            <div class="tile">B</div>
+            <div class="tile">L</div>
+            <div class="tile">E</div>
+        </div>
+        
+        <h1>Scorbble</h1>
+        <p class="tagline">The ultimate Scrabble score keeper</p>
+        
+        <div class="features">
+            <div class="feature">
+                <h3>📊 Score Tracking</h3>
+                <p>Track scores for 2-4 players with word-by-word entry, letter bonuses, and word multipliers.</p>
+            </div>
+            <div class="feature">
+                <h3>📖 Word Checker</h3>
+                <p>Verify any word instantly with US (TWL) and UK (SOWPODS) dictionaries — works offline.</p>
+            </div>
+            <div class="feature">
+                <h3>🏆 Game History</h3>
+                <p>Save all your games, track player stats, and see who's winning the most.</p>
+            </div>
+        </div>
+        
+        <div class="app-store-badge">
+            <!-- Replace with actual App Store link when available -->
+            <a href="#">
+                <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store">
+            </a>
+        </div>
+        
+        <div class="links">
+            <a href="privacy-policy.html">Privacy Policy</a>
+            <a href="mailto:kieranjamespd@gmail.com">Contact Support</a>
+        </div>
+        
+        <div class="footer">
+            <p>© 2024 Scorbble. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+
