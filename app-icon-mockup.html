@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Scorbble App Icon</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #2d2d2d;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif;
+    }
+    
+    .icon-container {
+      width: 1024px;
+      height: 1024px;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      padding: 120px;
+    }
+    
+    .tile {
+      width: 240px;
+      height: 240px;
+      background: linear-gradient(145deg, #faf6ed 0%, #e8e0cc 100%);
+      border-radius: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      box-shadow: 
+        0 8px 0 #c4b896,
+        0 12px 20px rgba(0,0,0,0.4),
+        inset 0 2px 0 rgba(255,255,255,0.5);
+    }
+    
+    .tile.blank {
+      background: linear-gradient(145deg, #f0ebe0 0%, #d8d0bc 100%);
+      box-shadow: 
+        0 8px 0 #b0a888,
+        0 12px 20px rgba(0,0,0,0.4),
+        inset 0 2px 0 rgba(255,255,255,0.3);
+    }
+    
+    .letter {
+      font-size: 140px;
+      font-weight: 700;
+      color: #1a1a2e;
+      line-height: 1;
+      margin-top: -10px;
+    }
+    
+    .points {
+      position: absolute;
+      bottom: 20px;
+      right: 24px;
+      font-size: 36px;
+      font-weight: 600;
+      color: #1a1a2e;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="icon-container" id="icon">
+    <div class="grid">
+      <!-- Row 1: S C O -->
+      <div class="tile">
+        <span class="letter">S</span>
+        <span class="points">1</span>
+      </div>
+      <div class="tile">
+        <span class="letter">C</span>
+        <span class="points">3</span>
+      </div>
+      <div class="tile">
+        <span class="letter">O</span>
+        <span class="points">1</span>
+      </div>
+      
+      <!-- Row 2: R B B -->
+      <div class="tile">
+        <span class="letter">R</span>
+        <span class="points">1</span>
+      </div>
+      <div class="tile">
+        <span class="letter">B</span>
+        <span class="points">3</span>
+      </div>
+      <div class="tile">
+        <span class="letter">B</span>
+        <span class="points">3</span>
+      </div>
+      
+      <!-- Row 3: L E (blank) -->
+      <div class="tile">
+        <span class="letter">L</span>
+        <span class="points">1</span>
+      </div>
+      <div class="tile">
+        <span class="letter">E</span>
+        <span class="points">1</span>
+      </div>
+      <div class="tile blank">
+        <!-- Empty blank tile -->
+      </div>
+    </div>
+  </div>
+</body>
+</html>
