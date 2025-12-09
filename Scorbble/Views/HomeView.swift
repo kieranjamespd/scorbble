@@ -13,6 +13,14 @@ struct HomeView: View {
     @State private var showWordChecker = false
     @State private var showPastGames = false
     
+    // Launch animation state
+    @State private var tileOpacities: [Double] = Array(repeating: 0, count: 8)
+    @State private var tileScales: [Double] = Array(repeating: 0.5, count: 8)
+    @State private var subtitleOpacity: Double = 0
+    @State private var buttonsOpacity: Double = 0
+    @State private var buttonsOffset: CGFloat = 30
+    @State private var hasAnimated = false
+    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -29,10 +37,12 @@ struct HomeView: View {
                     
                     // App Logo & Title
                     VStack(spacing: 16) {
-                        // Scrabble tile style logo
+                        // Scrabble tile style logo with animation
                         HStack(spacing: 4) {
                             ForEach(Array("SCORBBLE".enumerated()), id: \.offset) { index, letter in
                                 TileView(letter: String(letter), points: tilePoints(for: letter))
+                                    .opacity(tileOpacities[index])
+                                    .scaleEffect(tileScales[index])
                             }
                         }
                         
@@ -40,11 +50,12 @@ struct HomeView: View {
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundColor(.white.opacity(0.6))
+                            .opacity(subtitleOpacity)
                     }
                     
                     Spacer()
                     
-                    // Main Menu Buttons
+                    // Main Menu Buttons with animation
                     VStack(spacing: 16) {
                         MenuButton(
                             title: "New Game",
@@ -74,9 +85,17 @@ struct HomeView: View {
                         }
                     }
                     .padding(.horizontal, 24)
+                    .opacity(buttonsOpacity)
+                    .offset(y: buttonsOffset)
                     
                     Spacer()
                     Spacer()
+                }
+            }
+            .onAppear {
+                if !hasAnimated {
+                    startLaunchAnimation()
+                    hasAnimated = true
                 }
             }
             // Navigation destinations
@@ -99,6 +118,31 @@ struct HomeView: View {
         case "C", "B": return 3
         case "O": return 1
         default: return 1
+        }
+    }
+    
+    // MARK: - Launch Animation
+    
+    func startLaunchAnimation() {
+        // Phase 1: Animate tiles popping in (staggered)
+        for index in 0..<8 {
+            let delay = Double(index) * 0.08
+            
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.6).delay(delay)) {
+                tileOpacities[index] = 1.0
+                tileScales[index] = 1.0
+            }
+        }
+        
+        // Phase 2: Fade in subtitle
+        withAnimation(.easeOut(duration: 0.4).delay(0.8)) {
+            subtitleOpacity = 1.0
+        }
+        
+        // Phase 3: Slide up and fade in buttons
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(1.1)) {
+            buttonsOpacity = 1.0
+            buttonsOffset = 0
         }
     }
 }
