@@ -36,6 +36,26 @@ class GameStorage: ObservableObject {
     func saveGame(players: [Player]) {
         let game = SavedGame(from: players)
         saveGame(game)
+        
+        // Update player profile stats
+        updatePlayerProfileStats(players: players, winnerName: game.winnerName)
+    }
+    
+    /// Update profile stats for all players in a game
+    private func updatePlayerProfileStats(players: [Player], winnerName: String) {
+        let isTie = winnerName == "Tie"
+        
+        for player in players {
+            // Determine if this player won (not a tie and they're the winner)
+            let didWin = !isTie && player.name == winnerName
+            
+            // Update their profile stats
+            ProfileStorage.shared.updateStats(
+                for: player.name,
+                score: player.score,
+                didWin: didWin
+            )
+        }
     }
     
     /// Delete a game

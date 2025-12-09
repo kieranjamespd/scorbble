@@ -9,11 +9,16 @@ import SwiftUI
 
 struct GameSetupView: View {
     @Environment(\.dismiss) var dismiss
+    @ObservedObject var profileStorage = ProfileStorage.shared
     
     // Players being set up for the game
     @State private var players: [PlayerSetup] = []
     @State private var newPlayerName: String = ""
     @State private var selectedColorIndex: Int = 0
+    
+    // Profile suggestions
+    @State private var showSuggestions = false
+    @FocusState private var isNameFieldFocused: Bool
     
     // Navigation to active game
     @State private var showActiveGame = false
@@ -141,65 +146,136 @@ struct GameSetupView: View {
     
     // MARK: - Add Player Section
     
+    /// Get available profiles (not already added to game)
+    var availableProfiles: [PlayerProfile] {
+        let alreadyAddedNames = players.map { $0.name.lowercased() }
+        return profileStorage.recentProfiles
+            .filter { !alreadyAddedNames.contains($0.name.lowercased()) }
+    }
+    
     var addPlayerSection: some View {
-        VStack(spacing: 16) {
-            // Divider
-            Rectangle()
-                .fill(Color.white.opacity(0.1))
-                .frame(height: 1)
-            
-            // Color picker
-            HStack(spacing: 8) {
-                Text("Color:")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.5))
-                
-                ForEach(Array(availableColors.enumerated()), id: \.element) { index, colorName in
-                    Circle()
-                        .fill(colorFromName(colorName))
-                        .frame(width: 32, height: 32)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white, lineWidth: selectedColorIndex == index ? 3 : 0)
-                        )
-                        .onTapGesture {
-                            selectedColorIndex = index
+        VStack(spacing: 20) {
+            // Saved profiles chips (if any exist)
+            if !availableProfiles.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Quick Add")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white.opacity(0.5))
+                        .textCase(.uppercase)
+                        .tracking(1.5)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(availableProfiles) { profile in
+                                ProfileChip(profile: profile) {
+                                    selectProfile(profile)
+                                }
+                            }
                         }
+                        .padding(.vertical, 2) // Prevents clipping of chip shadows
+                    }
                 }
                 
-                Spacer()
+                // Divider between sections
+                Rectangle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(height: 1)
+                    .padding(.vertical, 4)
             }
             
-            // Name input and add button
-            HStack(spacing: 12) {
-                // Text field
-                TextField("", text: $newPlayerName, prompt: Text("Enter player name").foregroundColor(.white.opacity(0.3)))
-                    .font(.body)
-                    .foregroundColor(.white)
-                    .padding(16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white.opacity(0.08))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    )
+            // "Add new player" section
+            VStack(alignment: .leading, spacing: 16) {
+                if !availableProfiles.isEmpty {
+                    Text("Add New Player")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white.opacity(0.5))
+                        .textCase(.uppercase)
+                        .tracking(1.5)
+                }
                 
-                // Add button
-                Button(action: addPlayer) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .bold))
+                // Color picker
+                HStack(spacing: 10) {
+                    Text("Color")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.6))
+                    
+                    Spacer()
+                    
+                    ForEach(Array(availableColors.enumerated()), id: \.element) { index, colorName in
+                        Circle()
+                            .fill(colorFromName(colorName))
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white, lineWidth: selectedColorIndex == index ? 3 : 0)
+                            )
+                            .scaleEffect(selectedColorIndex == index ? 1.1 : 1.0)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedColorIndex)
+                            .onTapGesture {
+                                selectedColorIndex = index
+                            }
+                    }
+                }
+                .padding(.horizontal, 4)
+                
+                // Name input and add button
+                HStack(spacing: 12) {
+                    // Text field
+                    TextField("", text: $newPlayerName, prompt: Text("Enter name").foregroundColor(.white.opacity(0.3)))
+                        .font(.body)
                         .foregroundColor(.white)
-                        .frame(width: 52, height: 52)
+                        .padding(16)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(hex: "4ade80"))
+                                .fill(Color.white.opacity(0.08))
                         )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        )
+                        .focused($isNameFieldFocused)
+                    
+                    // Add button
+                    Button(action: addPlayer) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 54, height: 54)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(Color(hex: "4ade80"))
+                            )
+                    }
+                    .disabled(newPlayerName.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .opacity(newPlayerName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
                 }
-                .disabled(newPlayerName.trimmingCharacters(in: .whitespaces).isEmpty)
-                .opacity(newPlayerName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
             }
+        }
+    }
+    
+    /// Select a profile from chips - adds player directly
+    func selectProfile(_ profile: PlayerProfile) {
+        guard !availableColors.isEmpty else { return }
+        
+        // Use their preferred color if available, otherwise first available
+        let colorName: String
+        if availableColors.contains(profile.preferredColorName) {
+            colorName = profile.preferredColorName
+        } else {
+            colorName = availableColors.first ?? "blue"
+        }
+        
+        let newPlayer = PlayerSetup(name: profile.name, colorName: colorName)
+        
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            players.append(newPlayer)
+        }
+        
+        // Update their preferred color if it changed
+        if colorName != profile.preferredColorName {
+            profileStorage.updatePreferredColor(for: profile.name, colorName: colorName)
         }
     }
     
@@ -237,9 +313,15 @@ struct GameSetupView: View {
             players.append(newPlayer)
         }
         
-        // Reset input
+        // Save or update player profile
+        _ = profileStorage.getOrCreateProfile(name: trimmedName, colorName: colorName)
+        profileStorage.updatePreferredColor(for: trimmedName, colorName: colorName)
+        
+        // Reset input and hide suggestions
         newPlayerName = ""
         selectedColorIndex = 0
+        isNameFieldFocused = false
+        showSuggestions = false
     }
     
     func startGame() {
@@ -324,6 +406,64 @@ struct PlayerRow: View {
         case "pink": return .pink
         default: return .gray
         }
+    }
+}
+
+// MARK: - Profile Chip Component
+
+struct ProfileChip: View {
+    let profile: PlayerProfile
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                // Color dot
+                Circle()
+                    .fill(profile.preferredColor)
+                    .frame(width: 24, height: 24)
+                
+                // Name
+                Text(profile.name)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                
+                // Stats badge (if they've played)
+                if profile.gamesPlayed > 0 {
+                    Text("\(profile.totalWins)W")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white.opacity(0.6))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.15))
+                        )
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                Capsule()
+                    .fill(profile.preferredColor.opacity(0.15))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(profile.preferredColor.opacity(0.3), lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(ProfileChipButtonStyle())
+    }
+}
+
+/// Custom button style for chip press animation
+struct ProfileChipButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
