@@ -46,6 +46,21 @@ struct ActiveGameView: View {
         WordValidator.validationStatus(wordInput)
     }
     
+    // Dynamic tile size based on word length
+    var tileSizeForWord: (size: TileSize, spacing: CGFloat, wrap: Bool) {
+        let count = letterTiles.count
+        if count <= 6 {
+            return (isInputFocused ? .compact : .regular, 6, false)
+        } else if count <= 8 {
+            return (.compact, 4, false)
+        } else if count <= 10 {
+            return (.small, 3, false)
+        } else {
+            // Wrap to multiple lines for very long words
+            return (.small, 4, true)
+        }
+    }
+    
     var body: some View {
         ZStack {
             // Background
@@ -100,16 +115,19 @@ struct ActiveGameView: View {
                                 endGameButton
                             }
                         }
-                        .padding(20)
-                        .animation(.easeInOut(duration: 0.2), value: isInputFocused)
+                    .padding(20)
+                    .animation(.easeOut(duration: 0.15), value: isInputFocused)
                     }
-                    .onChange(of: isInputFocused) { _, focused in
-                        if focused {
-                            withAnimation {
+                .onChange(of: isInputFocused) { _, focused in
+                    if focused {
+                        // Delay scroll slightly so keyboard can appear first
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            withAnimation(.easeOut(duration: 0.2)) {
                                 proxy.scrollTo("wordEntry", anchor: .top)
                             }
                         }
                     }
+                }
                 }
             }
         }
@@ -168,36 +186,43 @@ struct ActiveGameView: View {
     // MARK: - Compact Scoreboard (when keyboard open)
     
     var compactScoreboard: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 8) {
             ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
-                HStack(spacing: 6) {
+                let isCurrentTurn = index == currentPlayerIndex
+                
+                HStack(spacing: 5) {
                     Circle()
                         .fill(player.color)
                         .frame(width: 8, height: 8)
                     
                     Text(player.name)
                         .font(.caption)
-                        .fontWeight(index == currentPlayerIndex ? .bold : .medium)
-                        .foregroundColor(index == currentPlayerIndex ? .white : .white.opacity(0.5))
+                        .fontWeight(isCurrentTurn ? .bold : .medium)
+                        .foregroundColor(.white)
                         .lineLimit(1)
                     
                     Text("\(player.score)")
                         .font(.caption)
                         .fontWeight(.bold)
-                        .foregroundColor(index == currentPlayerIndex ? player.color : .white.opacity(0.7))
+                        .foregroundColor(isCurrentTurn ? player.color : .white.opacity(0.7))
                 }
-                
-                if index < players.count - 1 {
-                    Text("•")
-                        .foregroundColor(.white.opacity(0.2))
-                }
+                .padding(.horizontal, isCurrentTurn ? 10 : 6)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(isCurrentTurn ? player.color.opacity(0.25) : Color.clear)
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(isCurrentTurn ? player.color : Color.clear, lineWidth: 1.5)
+                )
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
         .background(
             Capsule()
-                .fill(Color.white.opacity(0.08))
+                .fill(Color.white.opacity(0.05))
         )
     }
     
@@ -261,16 +286,17 @@ struct ActiveGameView: View {
     // MARK: - Word Entry Section
     
     var wordEntrySection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: isInputFocused ? 10 : 16) {
             // Word input field
             TextField("", text: $wordInput, prompt: Text("Type your word...").foregroundColor(.white.opacity(0.3)))
                 .font(.title3)
                 .fontWeight(.medium)
                 .foregroundColor(.white)
                 .multilineTextAlignment(.center)
-                .autocapitalization(.allCharacters)
-                .disableAutocorrection(true)
-                .padding(16)
+                .textInputAutocapitalization(.characters)
+                .autocorrectionDisabled(true)
+                .keyboardType(.asciiCapable)
+                .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.white.opacity(0.08))
@@ -282,16 +308,30 @@ struct ActiveGameView: View {
             
             // Letter tiles
             if !letterTiles.isEmpty {
-                VStack(spacing: 12) {
-                    Text("Tap tiles to add letter bonuses")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.4))
+                VStack(spacing: isInputFocused ? 6 : 12) {
+                    if !isInputFocused {
+                        Text("Tap tiles to add letter bonuses")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.4))
+                    }
                     
-                    // Tiles grid - wraps if needed
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: min(letterTiles.count, 7)), spacing: 6) {
-                        ForEach(Array(letterTiles.enumerated()), id: \.element.id) { index, tile in
-                            TappableLetterTile(tile: tile) {
-                                cycleTileMultiplier(at: index)
+                    // Tiles - single row or grid based on word length
+                    if tileSizeForWord.wrap {
+                        // Grid layout for very long words (11+)
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: tileSizeForWord.spacing), count: 10), spacing: tileSizeForWord.spacing) {
+                            ForEach(Array(letterTiles.enumerated()), id: \.element.id) { index, tile in
+                                TappableLetterTile(tile: tile, size: tileSizeForWord.size) {
+                                    cycleTileMultiplier(at: index)
+                                }
+                            }
+                        }
+                    } else {
+                        // Single row for normal words
+                        HStack(spacing: tileSizeForWord.spacing) {
+                            ForEach(Array(letterTiles.enumerated()), id: \.element.id) { index, tile in
+                                TappableLetterTile(tile: tile, size: tileSizeForWord.size) {
+                                    cycleTileMultiplier(at: index)
+                                }
                             }
                         }
                     }
@@ -300,20 +340,22 @@ struct ActiveGameView: View {
             
             // Word multiplier
             if !wordInput.isEmpty {
-                VStack(spacing: 8) {
-                    Text("Word Bonus")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.4))
+                VStack(spacing: isInputFocused ? 4 : 8) {
+                    if !isInputFocused {
+                        Text("Word Bonus")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.4))
+                    }
                     
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         ForEach([1, 2, 3], id: \.self) { multiplier in
                             Button(action: { wordMultiplier = multiplier }) {
-                                Text(multiplier == 1 ? "1×" : multiplier == 2 ? "2× DW" : "3× TW")
-                                    .font(.subheadline)
+                                Text(multiplier == 1 ? "1×" : multiplier == 2 ? "Double Word" : "Triple Word")
+                                    .font(isInputFocused ? .caption : .subheadline)
                                     .fontWeight(.semibold)
                                     .foregroundColor(wordMultiplier == multiplier ? Color(hex: "1a1a2e") : .white.opacity(0.6))
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, isInputFocused ? 10 : 14)
+                                    .padding(.vertical, isInputFocused ? 8 : 10)
                                     .background(
                                         RoundedRectangle(cornerRadius: 8)
                                             .fill(wordMultiplier == multiplier ? Color(hex: "fbbf24") : Color.white.opacity(0.1))
@@ -354,7 +396,7 @@ struct ActiveGameView: View {
                 .padding(.horizontal, 4)
             }
         }
-        .padding(20)
+        .padding(isInputFocused ? 14 : 20)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.white.opacity(0.05))
@@ -715,43 +757,80 @@ struct PlayerScoreCard: View {
 
 // MARK: - Tappable Letter Tile
 
+enum TileSize {
+    case regular, compact, small
+    
+    var dimension: CGFloat {
+        switch self {
+        case .regular: return 44
+        case .compact: return 36
+        case .small: return 30
+        }
+    }
+    
+    var fontSize: CGFloat {
+        switch self {
+        case .regular: return 22
+        case .compact: return 18
+        case .small: return 15
+        }
+    }
+    
+    var pointsSize: CGFloat {
+        switch self {
+        case .regular: return 9
+        case .compact: return 8
+        case .small: return 7
+        }
+    }
+    
+    var cornerRadius: CGFloat {
+        switch self {
+        case .regular: return 6
+        case .compact: return 5
+        case .small: return 4
+        }
+    }
+}
+
 struct TappableLetterTile: View {
     let tile: LetterTile
+    var size: TileSize = .regular
     let onTap: () -> Void
     
     var body: some View {
         Button(action: onTap) {
             ZStack(alignment: .bottomTrailing) {
                 // Tile background
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: size.cornerRadius)
                     .fill(tileBackground)
-                    .frame(width: 44, height: 44)
+                    .frame(width: size.dimension, height: size.dimension)
                     .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
                 
                 // Letter
                 Text(String(tile.letter))
-                    .font(.system(size: 22, weight: .bold, design: .serif))
+                    .font(.system(size: size.fontSize, weight: .bold, design: .serif))
                     .foregroundColor(Color(hex: "2d2d2d"))
-                    .frame(width: 44, height: 44)
+                    .frame(width: size.dimension, height: size.dimension)
                 
                 // Points
                 Text("\(tile.basePoints)")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: size.pointsSize, weight: .bold))
                     .foregroundColor(Color(hex: "2d2d2d"))
-                    .padding(4)
+                    .padding(size == .regular ? 4 : 3)
                 
                 // Multiplier badge
                 if tile.multiplier > 1 {
                     Text("\(tile.multiplier)×")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: size == .regular ? 10 : 8, weight: .bold))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
+                        .padding(.horizontal, size == .regular ? 4 : 3)
+                        .padding(.vertical, size == .regular ? 2 : 1)
                         .background(
                             Capsule()
                                 .fill(tile.multiplier == 2 ? Color(hex: "60a5fa") : Color(hex: "f472b6"))
                         )
-                        .offset(x: 8, y: -8)
+                        .offset(x: size == .regular ? 8 : 6, y: size == .regular ? -8 : -6)
                 }
             }
         }

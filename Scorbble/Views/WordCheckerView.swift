@@ -12,18 +12,34 @@ struct WordCheckerView: View {
     
     @State private var wordInput: String = ""
     @State private var selectedDictionary: ScrabbleDictionary = .uk
+    @State private var letterTiles: [LetterTile] = []
+    @State private var wordMultiplier: Int = 1
     
-    // Calculate the base score (no bonuses)
-    var baseScore: Int {
-        wordInput.uppercased().reduce(0) { total, letter in
-            total + scrabblePoints(for: letter)
-        }
-    }
+    @FocusState private var isInputFocused: Bool
     
     var validation: WordValidationStatus {
-        // Update the validator's dictionary before checking
         WordValidator.shared.currentDictionary = selectedDictionary
         return WordValidator.validationStatus(wordInput)
+    }
+    
+    var calculatedScore: Int {
+        calculateWordScore(tiles: letterTiles, wordMultiplier: wordMultiplier)
+    }
+    
+    // Dynamic tile sizing based on word length
+    var tileSize: CGFloat {
+        let count = letterTiles.count
+        if count <= 6 { return 44 }
+        else if count <= 8 { return 38 }
+        else if count <= 10 { return 32 }
+        else { return 28 }
+    }
+    
+    var tileSpacing: CGFloat {
+        let count = letterTiles.count
+        if count <= 6 { return 6 }
+        else if count <= 8 { return 4 }
+        else { return 3 }
     }
     
     var body: some View {
@@ -36,128 +52,200 @@ struct WordCheckerView: View {
             )
             .ignoresSafeArea()
             
-            VStack(spacing: 24) {
-                // Header
-                VStack(spacing: 8) {
-                    Text("Word Checker")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                    
-                    Text("Check if a word is valid in Scrabble")
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.5))
-                }
-                .padding(.top, 40)
-                
-                // Dictionary Picker
-                VStack(spacing: 8) {
-                    Text("Dictionary")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.4))
-                        .tracking(1)
-                    
-                    HStack(spacing: 0) {
-                        ForEach(ScrabbleDictionary.allCases, id: \.self) { dictionary in
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedDictionary = dictionary
-                                }
-                            }) {
-                                VStack(spacing: 4) {
-                                    Text(dictionary == .us ? "🇺🇸" : "🇬🇧")
-                                        .font(.title2)
-                                    Text(dictionary == .us ? "US" : "UK")
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(selectedDictionary == dictionary ? Color(hex: "60a5fa") : Color.clear)
-                                )
-                                .foregroundColor(selectedDictionary == dictionary ? .white : .white.opacity(0.5))
-                            }
-                        }
-                    }
-                    .padding(4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(Color.white.opacity(0.1))
-                    )
-                    .padding(.horizontal, 60)
-                    
-                    Text(selectedDictionary.description)
-                        .font(.caption2)
-                        .foregroundColor(.white.opacity(0.3))
-                }
-                
-                // Word input
-                TextField("", text: $wordInput, prompt: Text("Enter a word...").foregroundColor(.white.opacity(0.3)))
-                    .font(.title2)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .autocapitalization(.allCharacters)
-                    .disableAutocorrection(true)
-                    .padding(20)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.08))
-                    )
-                    .padding(.horizontal, 24)
-                
-                // Results
-                if !wordInput.isEmpty {
-                    VStack(spacing: 24) {
-                        // Validation status
-                        HStack(spacing: 12) {
-                            Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .font(.system(size: 28))
-                                .foregroundColor(validation.isAcceptable ? Color(hex: "4ade80") : Color(hex: "f87171"))
+            ScrollView {
+                VStack(spacing: isInputFocused ? 16 : 24) {
+                    // Header
+                    if !isInputFocused {
+                        VStack(spacing: 8) {
+                            Text("Word Checker")
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
                             
-                            Text(validation.message)
-                                .font(.headline)
-                                .foregroundColor(validation.isAcceptable ? Color(hex: "4ade80") : Color(hex: "f87171"))
+                            Text("Check if a word is valid in Scrabble")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.5))
                         }
-                        .padding(.vertical, 16)
-                        .padding(.horizontal, 24)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(validation.isAcceptable ? Color(hex: "4ade80").opacity(0.15) : Color(hex: "f87171").opacity(0.15))
-                        )
+                        .padding(.top, 40)
+                    } else {
+                        // Compact header
+                        HStack {
+                            Text("Word Checker")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                            Spacer()
+                        }
+                        .padding(.top, 8)
+                    }
+                    
+                    // Dictionary Picker
+                    VStack(spacing: 8) {
+                        if !isInputFocused {
+                            Text("Dictionary")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.4))
+                                .tracking(1)
+                        }
                         
-                        // Base score
-                        if validation.isAcceptable {
-                            VStack(spacing: 8) {
-                                Text("Base Score")
-                                    .font(.subheadline)
-                                    .foregroundColor(.white.opacity(0.5))
+                        HStack(spacing: 0) {
+                            ForEach(ScrabbleDictionary.allCases, id: \.self) { dictionary in
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedDictionary = dictionary
+                                    }
+                                }) {
+                                    VStack(spacing: isInputFocused ? 2 : 4) {
+                                        Text(dictionary == .us ? "🇺🇸" : "🇬🇧")
+                                            .font(isInputFocused ? .body : .title2)
+                                        Text(dictionary == .us ? "US" : "UK")
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, isInputFocused ? 8 : 12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(selectedDictionary == dictionary ? Color(hex: "60a5fa") : Color.clear)
+                                    )
+                                    .foregroundColor(selectedDictionary == dictionary ? .white : .white.opacity(0.5))
+                                }
+                            }
+                        }
+                        .padding(4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(Color.white.opacity(0.1))
+                        )
+                        .padding(.horizontal, isInputFocused ? 0 : 60)
+                        
+                        if !isInputFocused {
+                            Text(selectedDictionary.description)
+                                .font(.caption2)
+                                .foregroundColor(.white.opacity(0.3))
+                        }
+                    }
+                    
+                    // Word input
+                    TextField("", text: $wordInput, prompt: Text("Enter a word...").foregroundColor(.white.opacity(0.3)))
+                        .font(.title2)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled(true)
+                        .keyboardType(.asciiCapable)
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white.opacity(0.08))
+                        )
+                        .focused($isInputFocused)
+                        .onChange(of: wordInput) { _, newValue in
+                            updateTiles(for: newValue)
+                        }
+                    
+                    // Results
+                    if !wordInput.isEmpty {
+                        VStack(spacing: 16) {
+                            // Validation status
+                            HStack(spacing: 12) {
+                                Image(systemName: validation.isAcceptable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(validation.isAcceptable ? Color(hex: "4ade80") : Color(hex: "f87171"))
                                 
-                                Text("\(baseScore)")
-                                    .font(.system(size: 48, weight: .bold))
-                                    .foregroundColor(.white)
-                                
-                                Text("points (no bonuses)")
-                                    .font(.caption)
-                                    .foregroundColor(.white.opacity(0.4))
+                                Text(validation.message)
+                                    .font(.headline)
+                                    .foregroundColor(validation.isAcceptable ? Color(hex: "4ade80") : Color(hex: "f87171"))
+                            }
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 20)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(validation.isAcceptable ? Color(hex: "4ade80").opacity(0.15) : Color(hex: "f87171").opacity(0.15))
+                            )
+                            
+                            // Tile-based score calculator
+                            if validation.isAcceptable {
+                                VStack(spacing: 16) {
+                                    // Letter tiles
+                                    VStack(spacing: 8) {
+                                        Text("Tap tiles to add letter bonuses")
+                                            .font(.caption)
+                                            .foregroundColor(.white.opacity(0.4))
+                                        
+                                        // Tiles - use HStack for short words, wrap for long
+                                        if letterTiles.count <= 12 {
+                                            HStack(spacing: tileSpacing) {
+                                                ForEach(Array(letterTiles.enumerated()), id: \.element.id) { index, tile in
+                                                    WordCheckerTile(tile: tile, size: tileSize) {
+                                                        cycleTileMultiplier(at: index)
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 12), spacing: 3) {
+                                                ForEach(Array(letterTiles.enumerated()), id: \.element.id) { index, tile in
+                                                    WordCheckerTile(tile: tile, size: 28) {
+                                                        cycleTileMultiplier(at: index)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Word multiplier
+                                    VStack(spacing: 8) {
+                                        Text("Word Bonus")
+                                            .font(.caption)
+                                            .foregroundColor(.white.opacity(0.4))
+                                        
+                                        HStack(spacing: 8) {
+                                            ForEach([1, 2, 3], id: \.self) { multiplier in
+                                                Button(action: { wordMultiplier = multiplier }) {
+                                                    Text(multiplier == 1 ? "1×" : multiplier == 2 ? "Double Word" : "Triple Word")
+                                                        .font(.subheadline)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundColor(wordMultiplier == multiplier ? Color(hex: "1a1a2e") : .white.opacity(0.6))
+                                                        .padding(.horizontal, 14)
+                                                        .padding(.vertical, 10)
+                                                        .background(
+                                                            RoundedRectangle(cornerRadius: 8)
+                                                                .fill(wordMultiplier == multiplier ? Color(hex: "fbbf24") : Color.white.opacity(0.1))
+                                                        )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Score display
+                                    VStack(spacing: 4) {
+                                        Text("Score")
+                                            .font(.subheadline)
+                                            .foregroundColor(.white.opacity(0.5))
+                                        
+                                        Text("\(calculatedScore)")
+                                            .font(.system(size: 56, weight: .bold))
+                                            .foregroundColor(Color(hex: "4ade80"))
+                                        
+                                        Text("points")
+                                            .font(.caption)
+                                            .foregroundColor(.white.opacity(0.4))
+                                    }
+                                    .padding(.top, 8)
+                                }
+                                .padding(20)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(Color.white.opacity(0.05))
+                                )
                             }
                         }
                     }
-                }
-                
-                Spacer()
-                
-                // Dictionary info
-                VStack(spacing: 4) {
-                    Text("Sample dictionary • Add full word lists for complete coverage")
-                        .font(.caption2)
-                        .foregroundColor(.white.opacity(0.3))
-                        .multilineTextAlignment(.center)
+                    
+                    Spacer(minLength: 40)
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, 20)
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -172,6 +260,118 @@ struct WordCheckerView: View {
                     .foregroundColor(.white.opacity(0.7))
                 }
             }
+        }
+    }
+    
+    // MARK: - Actions
+    
+    func updateTiles(for word: String) {
+        let letters = word.uppercased().filter { $0.isLetter }
+        
+        // Preserve existing multipliers for matching positions
+        var newTiles: [LetterTile] = []
+        for (index, letter) in letters.enumerated() {
+            if index < letterTiles.count && letterTiles[index].letter == letter {
+                newTiles.append(letterTiles[index])
+            } else {
+                newTiles.append(LetterTile(letter: letter))
+            }
+        }
+        letterTiles = newTiles
+        
+        // Reset word multiplier when word changes significantly
+        if letters.count != letterTiles.count {
+            wordMultiplier = 1
+        }
+    }
+    
+    func cycleTileMultiplier(at index: Int) {
+        guard index < letterTiles.count else { return }
+        let current = letterTiles[index].multiplier
+        letterTiles[index].multiplier = current == 3 ? 1 : current + 1
+    }
+}
+
+// MARK: - Word Checker Tile
+
+struct WordCheckerTile: View {
+    let tile: LetterTile
+    var size: CGFloat = 44
+    let onTap: () -> Void
+    
+    var fontSize: CGFloat {
+        if size >= 44 { return 22 }
+        else if size >= 38 { return 18 }
+        else if size >= 32 { return 15 }
+        else { return 13 }
+    }
+    
+    var pointsSize: CGFloat {
+        if size >= 44 { return 9 }
+        else if size >= 38 { return 8 }
+        else { return 7 }
+    }
+    
+    var body: some View {
+        Button(action: onTap) {
+            ZStack(alignment: .bottomTrailing) {
+                // Tile background
+                RoundedRectangle(cornerRadius: size >= 38 ? 6 : 4)
+                    .fill(tileBackground)
+                    .frame(width: size, height: size)
+                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
+                
+                // Letter
+                Text(String(tile.letter))
+                    .font(.system(size: fontSize, weight: .bold, design: .serif))
+                    .foregroundColor(Color(hex: "2d2d2d"))
+                    .frame(width: size, height: size)
+                
+                // Points
+                if size >= 30 {
+                    Text("\(tile.basePoints)")
+                        .font(.system(size: pointsSize, weight: .bold))
+                        .foregroundColor(Color(hex: "2d2d2d"))
+                        .padding(size >= 38 ? 4 : 3)
+                }
+                
+                // Multiplier badge
+                if tile.multiplier > 1 {
+                    Text("\(tile.multiplier)×")
+                        .font(.system(size: size >= 38 ? 10 : 8, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, size >= 38 ? 4 : 3)
+                        .padding(.vertical, size >= 38 ? 2 : 1)
+                        .background(
+                            Capsule()
+                                .fill(tile.multiplier == 2 ? Color(hex: "60a5fa") : Color(hex: "f472b6"))
+                        )
+                        .offset(x: size >= 38 ? 8 : 6, y: size >= 38 ? -8 : -6)
+                }
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    var tileBackground: LinearGradient {
+        if tile.multiplier == 2 {
+            return LinearGradient(
+                colors: [Color(hex: "bfdbfe"), Color(hex: "93c5fd")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        } else if tile.multiplier == 3 {
+            return LinearGradient(
+                colors: [Color(hex: "fbcfe8"), Color(hex: "f9a8d4")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        } else {
+            return LinearGradient(
+                colors: [Color(hex: "f5e6d3"), Color(hex: "e8d5b7")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
         }
     }
 }

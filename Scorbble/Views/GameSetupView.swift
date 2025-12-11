@@ -52,24 +52,46 @@ struct GameSetupView: View {
             )
             .ignoresSafeArea()
             
-            VStack(spacing: 24) {
-                // Header
-                header
-                
-                // Player List
-                playerList
-                
-                // Add Player Section
-                if canAddMorePlayers {
-                    addPlayerSection
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: isNameFieldFocused ? 12 : 24) {
+                        // Header - condense when keyboard open
+                        if isNameFieldFocused {
+                            compactHeader
+                        } else {
+                            header
+                        }
+                        
+                        // Player List - compact rows when keyboard open
+                        playerListView
+                        
+                        // Add Player Section
+                        if canAddMorePlayers {
+                            addPlayerSection
+                                .id("addPlayer")
+                        }
+                        
+                        Spacer(minLength: isNameFieldFocused ? 0 : 20)
+                        
+                        // Start Game Button
+                        startGameButton
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, isNameFieldFocused ? 8 : 24)
+                    .padding(.bottom, 24)
+                    .animation(.easeOut(duration: 0.15), value: isNameFieldFocused)
                 }
-                
-                Spacer()
-                
-                // Start Game Button
-                startGameButton
+                .onChange(of: isNameFieldFocused) { _, focused in
+                    if focused {
+                        // Delay scroll so keyboard can appear first - improves responsiveness
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                proxy.scrollTo("addPlayer", anchor: .top)
+                            }
+                        }
+                    }
+                }
             }
-            .padding(24)
         }
         .navigationBarBackButtonHidden(true)
         .toolbar {
@@ -120,14 +142,32 @@ struct GameSetupView: View {
         .padding(.top, 20)
     }
     
+    // Compact header when keyboard is open
+    var compactHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("New Game")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                
+                Text("Add 2-4 players")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.5))
+            }
+            Spacer()
+        }
+    }
+    
     // MARK: - Player List
     
-    var playerList: some View {
-        VStack(spacing: 12) {
+    var playerListView: some View {
+        VStack(spacing: isNameFieldFocused ? 8 : 12) {
             ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
                 PlayerRow(
                     player: player,
                     playerNumber: index + 1,
+                    compact: isNameFieldFocused,
                     onDelete: {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             players.removeAll { $0.id == player.id }
@@ -136,8 +176,8 @@ struct GameSetupView: View {
                 )
             }
             
-            // Empty state
-            if players.isEmpty {
+            // Empty state - only show when not focused
+            if players.isEmpty && !isNameFieldFocused {
                 VStack(spacing: 12) {
                     Image(systemName: "person.3.fill")
                         .font(.system(size: 40))
@@ -183,10 +223,10 @@ struct GameSetupView: View {
     }
     
     var addPlayerSection: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: isNameFieldFocused ? 10 : 20) {
             // Saved profiles chips (if any exist)
             if !availableProfiles.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: isNameFieldFocused ? 6 : 12) {
                     Text("Quick Add")
                         .font(.caption)
                         .fontWeight(.semibold)
@@ -195,9 +235,9 @@ struct GameSetupView: View {
                         .tracking(1.5)
                     
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: isNameFieldFocused ? 8 : 12) {
                             ForEach(availableProfiles) { profile in
-                                ProfileChip(profile: profile) {
+                                ProfileChip(profile: profile, compact: isNameFieldFocused) {
                                     selectProfile(profile)
                                 }
                                 .onLongPressGesture {
@@ -206,23 +246,25 @@ struct GameSetupView: View {
                                 }
                             }
                         }
-                        .padding(.vertical, 2) // Prevents clipping of chip shadows
+                        .padding(.vertical, 2)
                     }
                     
-                    Text("Long press to edit")
-                        .font(.caption2)
-                        .foregroundColor(.white.opacity(0.3))
+                    if !isNameFieldFocused {
+                        Text("Long press to edit")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.3))
+                    }
                 }
                 
                 // Divider between sections
                 Rectangle()
                     .fill(Color.white.opacity(0.08))
                     .frame(height: 1)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, isNameFieldFocused ? 2 : 4)
             }
             
             // "Add new player" section
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: isNameFieldFocused ? 10 : 16) {
                 if !availableProfiles.isEmpty {
                     Text("Add New Player")
                         .font(.caption)
@@ -448,23 +490,24 @@ struct PlayerSetup: Identifiable {
 struct PlayerRow: View {
     let player: PlayerSetup
     let playerNumber: Int
+    var compact: Bool = false
     let onDelete: () -> Void
     
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: compact ? 12 : 16) {
             // Player color indicator
             Circle()
                 .fill(colorFromName(player.colorName))
-                .frame(width: 40, height: 40)
+                .frame(width: compact ? 28 : 40, height: compact ? 28 : 40)
                 .overlay(
                     Text("\(playerNumber)")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: compact ? 12 : 16, weight: .bold))
                         .foregroundColor(.white)
                 )
             
             // Player name
             Text(player.name)
-                .font(.headline)
+                .font(compact ? .subheadline : .headline)
                 .foregroundColor(.white)
             
             Spacer()
@@ -472,13 +515,13 @@ struct PlayerRow: View {
             // Delete button
             Button(action: onDelete) {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 24))
+                    .font(.system(size: compact ? 20 : 24))
                     .foregroundColor(.white.opacity(0.3))
             }
         }
-        .padding(16)
+        .padding(compact ? 10 : 16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: compact ? 10 : 12)
                 .fill(Color.white.opacity(0.08))
         )
     }
@@ -500,24 +543,25 @@ struct PlayerRow: View {
 
 struct ProfileChip: View {
     let profile: PlayerProfile
+    var compact: Bool = false
     let onTap: () -> Void
     
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 10) {
+            HStack(spacing: compact ? 6 : 10) {
                 // Color dot
                 Circle()
                     .fill(profile.preferredColor)
-                    .frame(width: 24, height: 24)
+                    .frame(width: compact ? 18 : 24, height: compact ? 18 : 24)
                 
                 // Name
                 Text(profile.name)
-                    .font(.subheadline)
+                    .font(compact ? .caption : .subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
                 
-                // Stats badge (if they've played)
-                if profile.gamesPlayed > 0 {
+                // Stats badge (if they've played) - hide when compact
+                if profile.gamesPlayed > 0 && !compact {
                     Text("\(profile.totalWins)W")
                         .font(.caption2)
                         .fontWeight(.bold)
@@ -530,8 +574,8 @@ struct ProfileChip: View {
                         )
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, compact ? 10 : 16)
+            .padding(.vertical, compact ? 8 : 12)
             .background(
                 Capsule()
                     .fill(profile.preferredColor.opacity(0.15))
