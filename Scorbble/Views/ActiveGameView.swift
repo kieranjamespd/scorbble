@@ -31,6 +31,9 @@ struct ActiveGameView: View {
     // Quick entry state
     @State private var quickScore: String = ""
     
+    // Keyboard tracking
+    @FocusState private var isInputFocused: Bool
+    
     var currentPlayer: Player {
         players[currentPlayerIndex]
     }
@@ -58,36 +61,55 @@ struct ActiveGameView: View {
                 gameOverView
             } else {
                 // Active Game
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // Scoreboard
-                        scoreboard
-                        
-                        // Current turn indicator
-                        currentTurnBanner
-                        
-                        // Mode toggle
-                        modeToggle
-                        
-                        // Score entry area
-                        if isWordMode {
-                            wordEntrySection
-                        } else {
-                            quickEntrySection
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: isInputFocused ? 12 : 20) {
+                            // Scoreboard - compact when keyboard open
+                            if isInputFocused {
+                                compactScoreboard
+                            } else {
+                                scoreboard
+                            }
+                            
+                            // Current turn indicator - hide when keyboard open
+                            if !isInputFocused {
+                                currentTurnBanner
+                            }
+                            
+                            // Mode toggle
+                            modeToggle
+                            
+                            // Score entry area
+                            if isWordMode {
+                                wordEntrySection
+                                    .id("wordEntry")
+                            } else {
+                                quickEntrySection
+                            }
+                            
+                            // Add score button
+                            addScoreButton
+                            
+                            // Turn history - hide when keyboard open
+                            if !turnHistory.isEmpty && !isInputFocused {
+                                turnHistorySection
+                            }
+                            
+                            // End game button - hide when keyboard open
+                            if !isInputFocused {
+                                endGameButton
+                            }
                         }
-                        
-                        // Add score button
-                        addScoreButton
-                        
-                        // Turn history
-                        if !turnHistory.isEmpty {
-                            turnHistorySection
-                        }
-                        
-                        // End game button
-                        endGameButton
+                        .padding(20)
+                        .animation(.easeInOut(duration: 0.2), value: isInputFocused)
                     }
-                    .padding(20)
+                    .onChange(of: isInputFocused) { _, focused in
+                        if focused {
+                            withAnimation {
+                                proxy.scrollTo("wordEntry", anchor: .top)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -141,6 +163,42 @@ struct ActiveGameView: View {
             }
         }
         .padding(.top, 10)
+    }
+    
+    // MARK: - Compact Scoreboard (when keyboard open)
+    
+    var compactScoreboard: some View {
+        HStack(spacing: 16) {
+            ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(player.color)
+                        .frame(width: 8, height: 8)
+                    
+                    Text(player.name)
+                        .font(.caption)
+                        .fontWeight(index == currentPlayerIndex ? .bold : .medium)
+                        .foregroundColor(index == currentPlayerIndex ? .white : .white.opacity(0.5))
+                        .lineLimit(1)
+                    
+                    Text("\(player.score)")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(index == currentPlayerIndex ? player.color : .white.opacity(0.7))
+                }
+                
+                if index < players.count - 1 {
+                    Text("•")
+                        .foregroundColor(.white.opacity(0.2))
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            Capsule()
+                .fill(Color.white.opacity(0.08))
+        )
     }
     
     // MARK: - Current Turn Banner
@@ -217,6 +275,7 @@ struct ActiveGameView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.white.opacity(0.08))
                 )
+                .focused($isInputFocused)
                 .onChange(of: wordInput) { _, newValue in
                     updateTiles(for: newValue)
                 }
@@ -320,6 +379,7 @@ struct ActiveGameView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.white.opacity(0.08))
                 )
+                .focused($isInputFocused)
         }
         .padding(20)
         .background(
