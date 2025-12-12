@@ -337,20 +337,6 @@ struct ActiveGameView: View {
             // Letter tiles
             if !letterTiles.isEmpty {
                 VStack(spacing: isInputFocused ? 6 : 12) {
-                    if !isInputFocused {
-                        HStack {
-                            Spacer()
-                            Button(action: { showTileHelp = true }) {
-                                Image(systemName: "info.circle")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.white.opacity(0.5))
-                            }
-                            .popover(isPresented: $showTileHelp) {
-                                TileHelpView()
-                                    .presentationCompactAdaptation(.popover)
-                            }
-                        }
-                    }
                     
                     // Tiles - single row or grid based on word length
                     if tileSizeForWord.wrap {
@@ -374,6 +360,27 @@ struct ActiveGameView: View {
                                     toggleBlankTile(at: index)
                                 }
                             }
+                        }
+                    }
+                    
+                    // Tile hint - always visible when tiles are shown
+                    if !isInputFocused {
+                        HStack(spacing: 16) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "hand.tap")
+                                    .font(.caption2)
+                                Text("Tap = 2×/3× letter")
+                                    .font(.caption2)
+                            }
+                            .foregroundColor(.white.opacity(0.4))
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "hand.tap.fill")
+                                    .font(.caption2)
+                                Text("Hold = blank tile")
+                                    .font(.caption2)
+                            }
+                            .foregroundColor(.white.opacity(0.4))
                         }
                     }
                 }

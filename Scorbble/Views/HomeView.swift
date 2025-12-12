@@ -107,22 +107,6 @@ struct HomeView: View {
                     .offset(y: buttonsOffset)
                     
                     Spacer()
-                    
-                    // Tip section
-                    VStack(spacing: 8) {
-                        Text("💡 Tip")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white.opacity(0.4))
-                        
-                        Text("Tap tiles for letter bonuses • Hold for blank tiles")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.3))
-                            .multilineTextAlignment(.center)
-                    }
-                    .opacity(buttonsOpacity)
-                    .padding(.bottom, 20)
-                    
                     Spacer()
                 }
             }

@@ -174,19 +174,6 @@ struct WordCheckerView: View {
                                 VStack(spacing: 16) {
                                     // Letter tiles
                                     VStack(spacing: 8) {
-                                        HStack {
-                                            Spacer()
-                                            Button(action: { showTileHelp = true }) {
-                                                Image(systemName: "info.circle")
-                                                    .font(.system(size: 16))
-                                                    .foregroundColor(.white.opacity(0.5))
-                                            }
-                                            .popover(isPresented: $showTileHelp) {
-                                                TileHelpView()
-                                                    .presentationCompactAdaptation(.popover)
-                                            }
-                                        }
-                                        
                                         // Tiles - use HStack for short words, wrap for long
                                         if letterTiles.count <= 12 {
                                             HStack(spacing: tileSpacing) {
@@ -208,6 +195,25 @@ struct WordCheckerView: View {
                                                     }
                                                 }
                                             }
+                                        }
+                                        
+                                        // Tile hint
+                                        HStack(spacing: 16) {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "hand.tap")
+                                                    .font(.caption2)
+                                                Text("Tap = 2×/3× letter")
+                                                    .font(.caption2)
+                                            }
+                                            .foregroundColor(.white.opacity(0.4))
+                                            
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "hand.tap.fill")
+                                                    .font(.caption2)
+                                                Text("Hold = blank tile")
+                                                    .font(.caption2)
+                                            }
+                                            .foregroundColor(.white.opacity(0.4))
                                         }
                                     }
                                     
