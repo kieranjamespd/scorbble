@@ -859,21 +859,8 @@ struct TappableLetterTile: View {
                 .foregroundColor(tile.isBlank ? Color(hex: "888888") : Color(hex: "2d2d2d"))
                 .padding(size == .regular ? 4 : 3)
             
-            // Blank tile indicator
-            if tile.isBlank {
-                Text("★")
-                    .font(.system(size: size == .regular ? 10 : 8, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, size == .regular ? 4 : 3)
-                    .padding(.vertical, size == .regular ? 2 : 1)
-                    .background(
-                        Capsule()
-                            .fill(Color(hex: "9ca3af"))
-                    )
-                    .offset(x: size == .regular ? 8 : 6, y: size == .regular ? -8 : -6)
-            }
-            // Multiplier badge (only show if not blank - blank tiles don't benefit from multipliers meaningfully)
-            else if tile.multiplier > 1 {
+            // Multiplier badge (only show if not blank - blank tiles don't benefit from multipliers)
+            if !tile.isBlank && tile.multiplier > 1 {
                 Text("\(tile.multiplier)×")
                     .font(.system(size: size == .regular ? 10 : 8, weight: .bold))
                     .foregroundColor(.white)

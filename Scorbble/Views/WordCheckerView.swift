@@ -372,21 +372,8 @@ struct WordCheckerTile: View {
                     .padding(size >= 38 ? 4 : 3)
             }
             
-            // Blank tile indicator
-            if tile.isBlank {
-                Text("★")
-                    .font(.system(size: size >= 38 ? 10 : 8, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, size >= 38 ? 4 : 3)
-                    .padding(.vertical, size >= 38 ? 2 : 1)
-                    .background(
-                        Capsule()
-                            .fill(Color(hex: "9ca3af"))
-                    )
-                    .offset(x: size >= 38 ? 8 : 6, y: size >= 38 ? -8 : -6)
-            }
-            // Multiplier badge
-            else if tile.multiplier > 1 {
+            // Multiplier badge (only show if not blank)
+            if !tile.isBlank && tile.multiplier > 1 {
                 Text("\(tile.multiplier)×")
                     .font(.system(size: size >= 38 ? 10 : 8, weight: .bold))
                     .foregroundColor(.white)
