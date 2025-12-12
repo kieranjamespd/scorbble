@@ -47,9 +47,10 @@ struct LetterTile: Identifiable {
     let id = UUID()
     let letter: Character
     var multiplier: Int = 1  // 1 = normal, 2 = double letter, 3 = triple letter
+    var isBlank: Bool = false  // Blank tiles score 0 points but can represent any letter
     
     var basePoints: Int {
-        scrabblePoints(for: letter)
+        isBlank ? 0 : scrabblePoints(for: letter)
     }
     
     var points: Int {
@@ -58,9 +59,14 @@ struct LetterTile: Identifiable {
 }
 
 /// Calculate total score for a word with letter and word multipliers
-func calculateWordScore(tiles: [LetterTile], wordMultiplier: Int) -> Int {
+/// - Parameters:
+///   - tiles: Array of letter tiles with their multipliers
+///   - wordMultiplier: Word bonus (1 = normal, 2 = double word, 3 = triple word)
+///   - includesBingo: Whether all 7 tiles were used (adds 50 point bonus)
+func calculateWordScore(tiles: [LetterTile], wordMultiplier: Int, includesBingo: Bool = false) -> Int {
     let letterTotal = tiles.reduce(0) { $0 + $1.points }
-    return letterTotal * wordMultiplier
+    let wordScore = letterTotal * wordMultiplier
+    return includesBingo ? wordScore + 50 : wordScore
 }
 
 // MARK: - Dictionary Type

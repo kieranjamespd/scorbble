@@ -27,6 +27,7 @@ struct ActiveGameView: View {
     @State private var wordInput: String = ""
     @State private var letterTiles: [LetterTile] = []
     @State private var wordMultiplier: Int = 1
+    @State private var hasBingo: Bool = false  // All 7 tiles used = +50 bonus
     
     // Quick entry state
     @State private var quickScore: String = ""
@@ -39,7 +40,7 @@ struct ActiveGameView: View {
     }
     
     var calculatedScore: Int {
-        calculateWordScore(tiles: letterTiles, wordMultiplier: wordMultiplier)
+        calculateWordScore(tiles: letterTiles, wordMultiplier: wordMultiplier, includesBingo: hasBingo)
     }
     
     var wordValidation: WordValidationStatus {
@@ -310,7 +311,7 @@ struct ActiveGameView: View {
             if !letterTiles.isEmpty {
                 VStack(spacing: isInputFocused ? 6 : 12) {
                     if !isInputFocused {
-                        Text("Tap tiles to add letter bonuses")
+                        Text("Tap = letter bonus • Hold = blank tile")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.4))
                     }
@@ -322,6 +323,8 @@ struct ActiveGameView: View {
                             ForEach(Array(letterTiles.enumerated()), id: \.element.id) { index, tile in
                                 TappableLetterTile(tile: tile, size: tileSizeForWord.size) {
                                     cycleTileMultiplier(at: index)
+                                } onLongPress: {
+                                    toggleBlankTile(at: index)
                                 }
                             }
                         }
@@ -331,6 +334,8 @@ struct ActiveGameView: View {
                             ForEach(Array(letterTiles.enumerated()), id: \.element.id) { index, tile in
                                 TappableLetterTile(tile: tile, size: tileSizeForWord.size) {
                                     cycleTileMultiplier(at: index)
+                                } onLongPress: {
+                                    toggleBlankTile(at: index)
                                 }
                             }
                         }
@@ -338,7 +343,7 @@ struct ActiveGameView: View {
                 }
             }
             
-            // Word multiplier
+            // Word multiplier & Bingo
             if !wordInput.isEmpty {
                 VStack(spacing: isInputFocused ? 4 : 8) {
                     if !isInputFocused {
@@ -362,6 +367,30 @@ struct ActiveGameView: View {
                                     )
                             }
                         }
+                    }
+                    
+                    // Bingo bonus (all 7 tiles = +50 points)
+                    Button(action: { hasBingo.toggle() }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: hasBingo ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: isInputFocused ? 14 : 16))
+                            Text("Bingo (+50)")
+                                .font(isInputFocused ? .caption : .subheadline)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(hasBingo ? Color(hex: "1a1a2e") : .white.opacity(0.6))
+                        .padding(.horizontal, isInputFocused ? 12 : 16)
+                        .padding(.vertical, isInputFocused ? 8 : 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(hasBingo ? Color(hex: "4ade80") : Color.white.opacity(0.1))
+                        )
+                    }
+                    
+                    if !isInputFocused {
+                        Text("Bingo = used all 7 tiles")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.3))
                     }
                 }
             }
@@ -688,6 +717,15 @@ struct ActiveGameView: View {
         letterTiles[index].multiplier = current == 3 ? 1 : current + 1
     }
     
+    func toggleBlankTile(at index: Int) {
+        guard index < letterTiles.count else { return }
+        letterTiles[index].isBlank.toggle()
+        // Reset multiplier when marking as blank (blank tiles don't benefit from letter multipliers)
+        if letterTiles[index].isBlank {
+            letterTiles[index].multiplier = 1
+        }
+    }
+    
     func addScore() {
         let points: Int
         let word: String?
@@ -719,6 +757,7 @@ struct ActiveGameView: View {
         wordInput = ""
         letterTiles = []
         wordMultiplier = 1
+        hasBingo = false
         quickScore = ""
     }
 }
@@ -797,48 +836,73 @@ struct TappableLetterTile: View {
     let tile: LetterTile
     var size: TileSize = .regular
     let onTap: () -> Void
+    var onLongPress: (() -> Void)? = nil  // For toggling blank tile
     
     var body: some View {
-        Button(action: onTap) {
-            ZStack(alignment: .bottomTrailing) {
-                // Tile background
-                RoundedRectangle(cornerRadius: size.cornerRadius)
-                    .fill(tileBackground)
-                    .frame(width: size.dimension, height: size.dimension)
-                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
-                
-                // Letter
-                Text(String(tile.letter))
-                    .font(.system(size: size.fontSize, weight: .bold, design: .serif))
-                    .foregroundColor(Color(hex: "2d2d2d"))
-                    .frame(width: size.dimension, height: size.dimension)
-                
-                // Points
-                Text("\(tile.basePoints)")
-                    .font(.system(size: size.pointsSize, weight: .bold))
-                    .foregroundColor(Color(hex: "2d2d2d"))
-                    .padding(size == .regular ? 4 : 3)
-                
-                // Multiplier badge
-                if tile.multiplier > 1 {
-                    Text("\(tile.multiplier)×")
-                        .font(.system(size: size == .regular ? 10 : 8, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, size == .regular ? 4 : 3)
-                        .padding(.vertical, size == .regular ? 2 : 1)
-                        .background(
-                            Capsule()
-                                .fill(tile.multiplier == 2 ? Color(hex: "60a5fa") : Color(hex: "f472b6"))
-                        )
-                        .offset(x: size == .regular ? 8 : 6, y: size == .regular ? -8 : -6)
-                }
+        ZStack(alignment: .bottomTrailing) {
+            // Tile background
+            RoundedRectangle(cornerRadius: size.cornerRadius)
+                .fill(tileBackground)
+                .frame(width: size.dimension, height: size.dimension)
+                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
+            
+            // Letter (italicized for blank tiles)
+            Text(String(tile.letter))
+                .font(.system(size: size.fontSize, weight: .bold, design: .serif))
+                .italic(tile.isBlank)
+                .foregroundColor(tile.isBlank ? Color(hex: "666666") : Color(hex: "2d2d2d"))
+                .frame(width: size.dimension, height: size.dimension)
+            
+            // Points (shows 0 for blank)
+            Text("\(tile.basePoints)")
+                .font(.system(size: size.pointsSize, weight: .bold))
+                .foregroundColor(tile.isBlank ? Color(hex: "888888") : Color(hex: "2d2d2d"))
+                .padding(size == .regular ? 4 : 3)
+            
+            // Blank tile indicator
+            if tile.isBlank {
+                Text("★")
+                    .font(.system(size: size == .regular ? 10 : 8, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, size == .regular ? 4 : 3)
+                    .padding(.vertical, size == .regular ? 2 : 1)
+                    .background(
+                        Capsule()
+                            .fill(Color(hex: "9ca3af"))
+                    )
+                    .offset(x: size == .regular ? 8 : 6, y: size == .regular ? -8 : -6)
+            }
+            // Multiplier badge (only show if not blank - blank tiles don't benefit from multipliers meaningfully)
+            else if tile.multiplier > 1 {
+                Text("\(tile.multiplier)×")
+                    .font(.system(size: size == .regular ? 10 : 8, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, size == .regular ? 4 : 3)
+                    .padding(.vertical, size == .regular ? 2 : 1)
+                    .background(
+                        Capsule()
+                            .fill(tile.multiplier == 2 ? Color(hex: "60a5fa") : Color(hex: "f472b6"))
+                    )
+                    .offset(x: size == .regular ? 8 : 6, y: size == .regular ? -8 : -6)
             }
         }
-        .buttonStyle(PlainButtonStyle())
+        .onTapGesture {
+            onTap()
+        }
+        .onLongPressGesture {
+            onLongPress?()
+        }
     }
     
     var tileBackground: LinearGradient {
-        if tile.multiplier == 2 {
+        if tile.isBlank {
+            // Blank tile - lighter/cream colored
+            return LinearGradient(
+                colors: [Color(hex: "e5e5e5"), Color(hex: "d4d4d4")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        } else if tile.multiplier == 2 {
             return LinearGradient(
                 colors: [Color(hex: "bfdbfe"), Color(hex: "93c5fd")],
                 startPoint: .top,

@@ -14,6 +14,7 @@ struct WordCheckerView: View {
     @State private var selectedDictionary: ScrabbleDictionary = .uk
     @State private var letterTiles: [LetterTile] = []
     @State private var wordMultiplier: Int = 1
+    @State private var hasBingo: Bool = false
     
     @FocusState private var isInputFocused: Bool
     
@@ -23,7 +24,7 @@ struct WordCheckerView: View {
     }
     
     var calculatedScore: Int {
-        calculateWordScore(tiles: letterTiles, wordMultiplier: wordMultiplier)
+        calculateWordScore(tiles: letterTiles, wordMultiplier: wordMultiplier, includesBingo: hasBingo)
     }
     
     // Dynamic tile sizing based on word length
@@ -170,7 +171,7 @@ struct WordCheckerView: View {
                                 VStack(spacing: 16) {
                                     // Letter tiles
                                     VStack(spacing: 8) {
-                                        Text("Tap tiles to add letter bonuses")
+                                        Text("Tap = letter bonus • Hold = blank tile")
                                             .font(.caption)
                                             .foregroundColor(.white.opacity(0.4))
                                         
@@ -180,6 +181,8 @@ struct WordCheckerView: View {
                                                 ForEach(Array(letterTiles.enumerated()), id: \.element.id) { index, tile in
                                                     WordCheckerTile(tile: tile, size: tileSize) {
                                                         cycleTileMultiplier(at: index)
+                                                    } onLongPress: {
+                                                        toggleBlankTile(at: index)
                                                     }
                                                 }
                                             }
@@ -188,6 +191,8 @@ struct WordCheckerView: View {
                                                 ForEach(Array(letterTiles.enumerated()), id: \.element.id) { index, tile in
                                                     WordCheckerTile(tile: tile, size: 28) {
                                                         cycleTileMultiplier(at: index)
+                                                    } onLongPress: {
+                                                        toggleBlankTile(at: index)
                                                     }
                                                 }
                                             }
@@ -216,6 +221,28 @@ struct WordCheckerView: View {
                                                 }
                                             }
                                         }
+                                        
+                                        // Bingo bonus
+                                        Button(action: { hasBingo.toggle() }) {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: hasBingo ? "checkmark.circle.fill" : "circle")
+                                                    .font(.system(size: 16))
+                                                Text("Bingo (+50)")
+                                                    .font(.subheadline)
+                                                    .fontWeight(.semibold)
+                                            }
+                                            .foregroundColor(hasBingo ? Color(hex: "1a1a2e") : .white.opacity(0.6))
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 10)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .fill(hasBingo ? Color(hex: "4ade80") : Color.white.opacity(0.1))
+                                            )
+                                        }
+                                        
+                                        Text("Bingo = used all 7 tiles")
+                                            .font(.caption2)
+                                            .foregroundColor(.white.opacity(0.3))
                                     }
                                     
                                     // Score display
@@ -290,6 +317,15 @@ struct WordCheckerView: View {
         let current = letterTiles[index].multiplier
         letterTiles[index].multiplier = current == 3 ? 1 : current + 1
     }
+    
+    func toggleBlankTile(at index: Int) {
+        guard index < letterTiles.count else { return }
+        letterTiles[index].isBlank.toggle()
+        // Reset multiplier when marking as blank
+        if letterTiles[index].isBlank {
+            letterTiles[index].multiplier = 1
+        }
+    }
 }
 
 // MARK: - Word Checker Tile
@@ -298,6 +334,7 @@ struct WordCheckerTile: View {
     let tile: LetterTile
     var size: CGFloat = 44
     let onTap: () -> Void
+    var onLongPress: (() -> Void)? = nil
     
     var fontSize: CGFloat {
         if size >= 44 { return 22 }
@@ -313,48 +350,71 @@ struct WordCheckerTile: View {
     }
     
     var body: some View {
-        Button(action: onTap) {
-            ZStack(alignment: .bottomTrailing) {
-                // Tile background
-                RoundedRectangle(cornerRadius: size >= 38 ? 6 : 4)
-                    .fill(tileBackground)
-                    .frame(width: size, height: size)
-                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
-                
-                // Letter
-                Text(String(tile.letter))
-                    .font(.system(size: fontSize, weight: .bold, design: .serif))
-                    .foregroundColor(Color(hex: "2d2d2d"))
-                    .frame(width: size, height: size)
-                
-                // Points
-                if size >= 30 {
-                    Text("\(tile.basePoints)")
-                        .font(.system(size: pointsSize, weight: .bold))
-                        .foregroundColor(Color(hex: "2d2d2d"))
-                        .padding(size >= 38 ? 4 : 3)
-                }
-                
-                // Multiplier badge
-                if tile.multiplier > 1 {
-                    Text("\(tile.multiplier)×")
-                        .font(.system(size: size >= 38 ? 10 : 8, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, size >= 38 ? 4 : 3)
-                        .padding(.vertical, size >= 38 ? 2 : 1)
-                        .background(
-                            Capsule()
-                                .fill(tile.multiplier == 2 ? Color(hex: "60a5fa") : Color(hex: "f472b6"))
-                        )
-                        .offset(x: size >= 38 ? 8 : 6, y: size >= 38 ? -8 : -6)
-                }
+        ZStack(alignment: .bottomTrailing) {
+            // Tile background
+            RoundedRectangle(cornerRadius: size >= 38 ? 6 : 4)
+                .fill(tileBackground)
+                .frame(width: size, height: size)
+                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
+            
+            // Letter (italicized for blank tiles)
+            Text(String(tile.letter))
+                .font(.system(size: fontSize, weight: .bold, design: .serif))
+                .italic(tile.isBlank)
+                .foregroundColor(tile.isBlank ? Color(hex: "666666") : Color(hex: "2d2d2d"))
+                .frame(width: size, height: size)
+            
+            // Points
+            if size >= 30 {
+                Text("\(tile.basePoints)")
+                    .font(.system(size: pointsSize, weight: .bold))
+                    .foregroundColor(tile.isBlank ? Color(hex: "888888") : Color(hex: "2d2d2d"))
+                    .padding(size >= 38 ? 4 : 3)
+            }
+            
+            // Blank tile indicator
+            if tile.isBlank {
+                Text("★")
+                    .font(.system(size: size >= 38 ? 10 : 8, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, size >= 38 ? 4 : 3)
+                    .padding(.vertical, size >= 38 ? 2 : 1)
+                    .background(
+                        Capsule()
+                            .fill(Color(hex: "9ca3af"))
+                    )
+                    .offset(x: size >= 38 ? 8 : 6, y: size >= 38 ? -8 : -6)
+            }
+            // Multiplier badge
+            else if tile.multiplier > 1 {
+                Text("\(tile.multiplier)×")
+                    .font(.system(size: size >= 38 ? 10 : 8, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, size >= 38 ? 4 : 3)
+                    .padding(.vertical, size >= 38 ? 2 : 1)
+                    .background(
+                        Capsule()
+                            .fill(tile.multiplier == 2 ? Color(hex: "60a5fa") : Color(hex: "f472b6"))
+                    )
+                    .offset(x: size >= 38 ? 8 : 6, y: size >= 38 ? -8 : -6)
             }
         }
-        .buttonStyle(PlainButtonStyle())
+        .onTapGesture {
+            onTap()
+        }
+        .onLongPressGesture {
+            onLongPress?()
+        }
     }
     
     var tileBackground: LinearGradient {
-        if tile.multiplier == 2 {
+        if tile.isBlank {
+            return LinearGradient(
+                colors: [Color(hex: "e5e5e5"), Color(hex: "d4d4d4")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        } else if tile.multiplier == 2 {
             return LinearGradient(
                 colors: [Color(hex: "bfdbfe"), Color(hex: "93c5fd")],
                 startPoint: .top,
