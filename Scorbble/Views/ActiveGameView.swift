@@ -20,6 +20,11 @@ struct ActiveGameView: View {
     @State private var showEndGameAlert = false
     @State private var gameEnded = false
     
+    // Undo support
+    @State private var canUndo = false
+    @State private var lastTurnPlayerIndex: Int? = nil
+    @State private var lastTurnPoints: Int? = nil
+    
     // Score entry mode
     @State private var isWordMode = true  // true = Word Entry, false = Quick Entry
     
@@ -500,19 +505,46 @@ struct ActiveGameView: View {
     }
     
     var addScoreButton: some View {
-        Button(action: addScore) {
-            Text("Add Score")
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(canAddScore ? Color(hex: "1a1a2e") : .white.opacity(0.3))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 18)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(canAddScore ? Color(hex: "4ade80") : Color.white.opacity(0.1))
-                )
+        HStack(spacing: 12) {
+            // Undo button (only shows when undo is available)
+            if canUndo {
+                Button(action: undoLastScore) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.uturn.backward")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Undo")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white.opacity(0.7))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.1))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                }
+            }
+            
+            // Add Score button
+            Button(action: addScore) {
+                Text("Add Score")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(canAddScore ? Color(hex: "1a1a2e") : .white.opacity(0.3))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(canAddScore ? Color(hex: "4ade80") : Color.white.opacity(0.1))
+                    )
+            }
+            .disabled(!canAddScore)
         }
-        .disabled(!canAddScore)
     }
     
     // MARK: - Turn History Section
@@ -780,6 +812,11 @@ struct ActiveGameView: View {
             word = nil
         }
         
+        // Store undo info before changing state
+        lastTurnPlayerIndex = currentPlayerIndex
+        lastTurnPoints = points
+        canUndo = true
+        
         // Record the turn
         let turn = TurnRecord(
             playerName: currentPlayer.name,
@@ -801,6 +838,28 @@ struct ActiveGameView: View {
         wordMultiplier = 1
         hasBingo = false
         quickScore = ""
+    }
+    
+    func undoLastScore() {
+        guard canUndo,
+              let playerIndex = lastTurnPlayerIndex,
+              let points = lastTurnPoints else { return }
+        
+        // Subtract points from the player
+        players[playerIndex].score -= points
+        
+        // Remove the last turn from history
+        if !turnHistory.isEmpty {
+            turnHistory.removeLast()
+        }
+        
+        // Go back to the previous player's turn
+        currentPlayerIndex = playerIndex
+        
+        // Clear undo state (can only undo once)
+        canUndo = false
+        lastTurnPlayerIndex = nil
+        lastTurnPoints = nil
     }
 }
 
