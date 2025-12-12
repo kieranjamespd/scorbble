@@ -217,13 +217,9 @@ struct LeaderboardSheet: View {
 struct LeaderboardView: View {
     @ObservedObject private var gameStorage = GameStorage.shared
     
-    var leaderboard: [(name: String, wins: Int, gamesPlayed: Int)] {
-        gameStorage.leaderboard
-    }
-    
     var body: some View {
         ScrollView {
-            if leaderboard.isEmpty {
+            if gameStorage.leaderboard.isEmpty {
                 VStack(spacing: 16) {
                     Image(systemName: "trophy")
                         .font(.system(size: 48))
@@ -241,12 +237,11 @@ struct LeaderboardView: View {
                 .padding(.top, 60)
             } else {
                 VStack(spacing: 12) {
-                    ForEach(Array(leaderboard.enumerated()), id: \.offset) { index, entry in
+                    ForEach(Array(gameStorage.leaderboard.enumerated()), id: \.offset) { index, entry in
                         LeaderboardRow(
                             rank: index + 1,
                             name: entry.name,
-                            wins: entry.wins,
-                            gamesPlayed: entry.gamesPlayed
+                            wins: entry.wins
                         )
                     }
                 }
@@ -260,7 +255,6 @@ struct LeaderboardRow: View {
     let rank: Int
     let name: String
     let wins: Int
-    let gamesPlayed: Int
     
     var rankColor: Color {
         switch rank {
@@ -300,30 +294,24 @@ struct LeaderboardRow: View {
                 }
             }
             
-            // Name and stats
-            VStack(alignment: .leading, spacing: 4) {
-                Text(name)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                
-                Text("\(gamesPlayed) games played")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.5))
-            }
+            // Name
+            Text(name)
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
             
             Spacer()
             
             // Wins
-            VStack(alignment: .trailing, spacing: 2) {
+            HStack(spacing: 4) {
                 Text("\(wins)")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(Color(hex: "4ade80"))
                 
-                Text("wins")
-                    .font(.caption2)
-                    .foregroundColor(.white.opacity(0.4))
+                Text(wins == 1 ? "win" : "wins")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.5))
             }
         }
         .padding(16)
