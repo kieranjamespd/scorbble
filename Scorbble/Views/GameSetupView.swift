@@ -240,9 +240,19 @@ struct GameSetupView: View {
                                 ProfileChip(profile: profile, compact: isNameFieldFocused) {
                                     selectProfile(profile)
                                 }
-                                .onLongPressGesture {
-                                    profileToEdit = profile
-                                    showProfileEditor = true
+                                .contextMenu {
+                                    Button {
+                                        profileToEdit = profile
+                                        showProfileEditor = true
+                                    } label: {
+                                        Label("Edit Profile", systemImage: "pencil")
+                                    }
+                                    
+                                    Button(role: .destructive) {
+                                        profileStorage.deleteProfile(profile)
+                                    } label: {
+                                        Label("Delete Profile", systemImage: "trash")
+                                    }
                                 }
                             }
                         }
@@ -250,7 +260,7 @@ struct GameSetupView: View {
                     }
                     
                     if !isNameFieldFocused {
-                        Text("Long press to edit")
+                        Text("Hold to edit or delete")
                             .font(.caption2)
                             .foregroundColor(.white.opacity(0.3))
                     }
