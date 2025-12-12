@@ -392,6 +392,8 @@ struct GameSetupView: View {
         
         let preferredColor = profile.preferredColorName
         
+        HapticManager.mediumImpact()
+        
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             // Check if their preferred color is available
             if availableColors.contains(preferredColor) {
@@ -447,6 +449,8 @@ struct GameSetupView: View {
         let colorName = availableColors[colorIndex]
         
         let newPlayer = PlayerSetup(name: trimmedName, colorName: colorName)
+        
+        HapticManager.mediumImpact()
         
         withAnimation(.easeInOut(duration: 0.2)) {
             players.append(newPlayer)

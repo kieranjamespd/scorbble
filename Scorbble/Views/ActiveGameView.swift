@@ -177,6 +177,9 @@ struct ActiveGameView: View {
                 // Save the game to history
                 GameStorage.shared.saveGame(players: players)
                 
+                // Haptic feedback for game end
+                HapticManager.heavyImpact()
+                
                 withAnimation {
                     gameEnded = true
                 }
@@ -387,7 +390,10 @@ struct ActiveGameView: View {
                     
                     HStack(spacing: 6) {
                         ForEach([1, 2, 3], id: \.self) { multiplier in
-                            Button(action: { wordMultiplier = multiplier }) {
+                            Button(action: {
+                                wordMultiplier = multiplier
+                                HapticManager.selectionChanged()
+                            }) {
                                 Text(multiplier == 1 ? "1×" : multiplier == 2 ? "Double Word" : "Triple Word")
                                     .font(isInputFocused ? .caption : .subheadline)
                                     .fontWeight(.semibold)
@@ -404,7 +410,10 @@ struct ActiveGameView: View {
                     
                     // Bingo bonus - only show when word is 7+ letters
                     if letterTiles.count >= 7 {
-                        Button(action: { hasBingo.toggle() }) {
+                        Button(action: {
+                            hasBingo.toggle()
+                            HapticManager.selectionChanged()
+                        }) {
                             HStack(spacing: 6) {
                                 Image(systemName: hasBingo ? "checkmark.circle.fill" : "circle")
                                     .font(.system(size: isInputFocused ? 14 : 16))
@@ -789,6 +798,7 @@ struct ActiveGameView: View {
         // Cycle: 1 → 2 → 3 → 1
         let current = letterTiles[index].multiplier
         letterTiles[index].multiplier = current == 3 ? 1 : current + 1
+        HapticManager.selectionChanged()
     }
     
     func toggleBlankTile(at index: Int) {
@@ -798,6 +808,7 @@ struct ActiveGameView: View {
         if letterTiles[index].isBlank {
             letterTiles[index].multiplier = 1
         }
+        HapticManager.lightTap()
     }
     
     func addScore() {
@@ -829,6 +840,9 @@ struct ActiveGameView: View {
         // Add score to player
         players[currentPlayerIndex].score += points
         
+        // Haptic feedback for score added
+        HapticManager.success()
+        
         // Move to next player
         currentPlayerIndex = (currentPlayerIndex + 1) % players.count
         
@@ -844,6 +858,9 @@ struct ActiveGameView: View {
         guard canUndo,
               let playerIndex = lastTurnPlayerIndex,
               let points = lastTurnPoints else { return }
+        
+        // Haptic feedback for undo
+        HapticManager.lightTap()
         
         // Subtract points from the player
         players[playerIndex].score -= points

@@ -97,6 +97,7 @@ struct WordCheckerView: View {
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         selectedDictionary = dictionary
                                     }
+                                    HapticManager.selectionChanged()
                                 }) {
                                     VStack(spacing: isInputFocused ? 2 : 4) {
                                         Text(dictionary == .us ? "🇺🇸" : "🇬🇧")
@@ -218,7 +219,10 @@ struct WordCheckerView: View {
                                         
                                         HStack(spacing: 8) {
                                             ForEach([1, 2, 3], id: \.self) { multiplier in
-                                                Button(action: { wordMultiplier = multiplier }) {
+                                                Button(action: {
+                                                    wordMultiplier = multiplier
+                                                    HapticManager.selectionChanged()
+                                                }) {
                                                     Text(multiplier == 1 ? "1×" : multiplier == 2 ? "Double Word" : "Triple Word")
                                                         .font(.subheadline)
                                                         .fontWeight(.semibold)
@@ -235,7 +239,10 @@ struct WordCheckerView: View {
                                         
                                         // Bingo bonus - only show when word is 7+ letters
                                         if letterTiles.count >= 7 {
-                                            Button(action: { hasBingo.toggle() }) {
+                                            Button(action: {
+                                                hasBingo.toggle()
+                                                HapticManager.selectionChanged()
+                                            }) {
                                                 HStack(spacing: 6) {
                                                     Image(systemName: hasBingo ? "checkmark.circle.fill" : "circle")
                                                         .font(.system(size: 16))
@@ -354,6 +361,7 @@ struct WordCheckerView: View {
         guard index < letterTiles.count else { return }
         let current = letterTiles[index].multiplier
         letterTiles[index].multiplier = current == 3 ? 1 : current + 1
+        HapticManager.selectionChanged()
     }
     
     func toggleBlankTile(at index: Int) {
@@ -363,6 +371,7 @@ struct WordCheckerView: View {
         if letterTiles[index].isBlank {
             letterTiles[index].multiplier = 1
         }
+        HapticManager.lightTap()
     }
 }
 
