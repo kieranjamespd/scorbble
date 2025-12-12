@@ -397,28 +397,30 @@ struct ActiveGameView: View {
                         }
                     }
                     
-                    // Bingo bonus (all 7 tiles = +50 points)
-                    Button(action: { hasBingo.toggle() }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: hasBingo ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: isInputFocused ? 14 : 16))
-                            Text("Bingo (+50)")
-                                .font(isInputFocused ? .caption : .subheadline)
-                                .fontWeight(.semibold)
+                    // Bingo bonus - only show when word is 7+ letters
+                    if letterTiles.count >= 7 {
+                        Button(action: { hasBingo.toggle() }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: hasBingo ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: isInputFocused ? 14 : 16))
+                                Text("Bingo (+50)")
+                                    .font(isInputFocused ? .caption : .subheadline)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(hasBingo ? Color(hex: "1a1a2e") : .white.opacity(0.6))
+                            .padding(.horizontal, isInputFocused ? 12 : 16)
+                            .padding(.vertical, isInputFocused ? 8 : 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(hasBingo ? Color(hex: "4ade80") : Color.white.opacity(0.1))
+                            )
                         }
-                        .foregroundColor(hasBingo ? Color(hex: "1a1a2e") : .white.opacity(0.6))
-                        .padding(.horizontal, isInputFocused ? 12 : 16)
-                        .padding(.vertical, isInputFocused ? 8 : 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(hasBingo ? Color(hex: "4ade80") : Color.white.opacity(0.1))
-                        )
-                    }
-                    
-                    if !isInputFocused {
-                        Text("Bingo = used all 7 tiles")
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.3))
+                        
+                        if !isInputFocused {
+                            Text(letterTiles.count == 7 ? "7 tiles = Bingo!" : "Toggle if you used all 7 tiles")
+                                .font(.caption2)
+                                .foregroundColor(.white.opacity(0.3))
+                        }
                     }
                 }
             }
@@ -724,6 +726,7 @@ struct ActiveGameView: View {
     
     func updateTiles(for word: String) {
         let letters = word.uppercased().filter { $0.isLetter }
+        let previousCount = letterTiles.count
         
         // Preserve existing multipliers for matching positions
         var newTiles: [LetterTile] = []
@@ -735,6 +738,17 @@ struct ActiveGameView: View {
             }
         }
         letterTiles = newTiles
+        
+        // Auto-manage bingo based on word length
+        let newCount = letters.count
+        if newCount == 7 && previousCount != 7 {
+            // Exactly 7 letters = auto-enable bingo
+            hasBingo = true
+        } else if newCount < 7 {
+            // Less than 7 = impossible to have bingo
+            hasBingo = false
+        }
+        // For 8+ letters, keep current bingo state (user controls it)
     }
     
     func cycleTileMultiplier(at index: Int) {
