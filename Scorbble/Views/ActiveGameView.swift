@@ -32,6 +32,10 @@ struct ActiveGameView: View {
     // Quick entry state
     @State private var quickScore: String = ""
     
+    // Help & Rules
+    @State private var showTileHelp = false
+    @State private var showRules = false
+    
     // Keyboard tracking
     @FocusState private var isInputFocused: Bool
     
@@ -146,6 +150,21 @@ struct ActiveGameView: View {
                     }
                 }
             }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if !gameEnded {
+                    Button(action: { showRules = true }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "book")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Rules")
+                        }
+                        .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showRules) {
+            ScrabbleRulesView()
         }
         .alert("End Game?", isPresented: $showEndGameAlert) {
             Button("Cancel", role: .cancel) { }
@@ -311,9 +330,18 @@ struct ActiveGameView: View {
             if !letterTiles.isEmpty {
                 VStack(spacing: isInputFocused ? 6 : 12) {
                     if !isInputFocused {
-                        Text("Tap = letter bonus • Hold = blank tile")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.4))
+                        HStack {
+                            Spacer()
+                            Button(action: { showTileHelp = true }) {
+                                Image(systemName: "info.circle")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                            .popover(isPresented: $showTileHelp) {
+                                TileHelpView()
+                                    .presentationCompactAdaptation(.popover)
+                            }
+                        }
                     }
                     
                     // Tiles - single row or grid based on word length
@@ -919,6 +947,195 @@ struct TurnRecord: Identifiable {
     let playerColor: Color
     let word: String?
     let points: Int
+}
+
+// MARK: - Tile Help Popover
+
+struct TileHelpView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Tile Controls")
+                .font(.headline)
+                .fontWeight(.bold)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Image(systemName: "hand.tap")
+                        .foregroundColor(Color(hex: "60a5fa"))
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Tap a tile")
+                            .fontWeight(.medium)
+                        Text("Cycle through 1× → 2× → 3× letter bonus")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                HStack(spacing: 10) {
+                    Image(systemName: "hand.tap.fill")
+                        .foregroundColor(Color(hex: "9ca3af"))
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Hold a tile")
+                            .fontWeight(.medium)
+                        Text("Mark as blank tile (0 points)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+        .padding()
+        .frame(minWidth: 240)
+    }
+}
+
+// MARK: - Scrabble Rules Sheet
+
+struct ScrabbleRulesView: View {
+    @Environment(\.dismiss) var dismiss
+    @State private var selectedRegion: ScrabbleDictionary = .uk
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color(hex: "1a1a2e").ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        // Region picker
+                        VStack(spacing: 8) {
+                            Text("Rule Set")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.5))
+                                .textCase(.uppercase)
+                                .tracking(1)
+                            
+                            HStack(spacing: 0) {
+                                ForEach(ScrabbleDictionary.allCases, id: \.self) { region in
+                                    Button(action: { selectedRegion = region }) {
+                                        HStack(spacing: 6) {
+                                            Text(region == .us ? "🇺🇸" : "🇬🇧")
+                                            Text(region == .us ? "US/Canada" : "UK/International")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .fill(selectedRegion == region ? Color(hex: "60a5fa") : Color.clear)
+                                        )
+                                        .foregroundColor(selectedRegion == region ? .white : .white.opacity(0.5))
+                                    }
+                                }
+                            }
+                            .padding(4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.white.opacity(0.1))
+                            )
+                        }
+                        
+                        // Core Rules
+                        RuleSection(title: "Core Rules", rules: [
+                            RuleItem(icon: "star.fill", color: "fbbf24", text: "First word must cover the center star (★) and gets Double Word score"),
+                            RuleItem(icon: "arrow.left.and.right", color: "60a5fa", text: "Words must read left-to-right or top-to-bottom"),
+                            RuleItem(icon: "link", color: "4ade80", text: "Every new word must connect to existing tiles on the board"),
+                            RuleItem(icon: "7.square.fill", color: "f472b6", text: "Use all 7 tiles in one turn = Bingo bonus (+50 points)"),
+                            RuleItem(icon: "square.dashed", color: "9ca3af", text: "Blank tiles can represent any letter but score 0 points")
+                        ])
+                        
+                        // Scoring
+                        RuleSection(title: "Scoring", rules: [
+                            RuleItem(icon: "textformat.abc", color: "60a5fa", text: "Light blue squares = Double Letter (2× that letter)"),
+                            RuleItem(icon: "textformat.abc", color: "f472b6", text: "Pink squares = Triple Letter (3× that letter)"),
+                            RuleItem(icon: "square.fill", color: "fbbf24", text: "Yellow squares = Double Word (2× total word)"),
+                            RuleItem(icon: "square.fill", color: "ef4444", text: "Red squares = Triple Word (3× total word)")
+                        ])
+                        
+                        // Region-specific rules
+                        if selectedRegion == .us {
+                            RuleSection(title: "US/Canada (TWL)", rules: [
+                                RuleItem(icon: "book.closed", color: "60a5fa", text: "Uses TWL (Tournament Word List) dictionary"),
+                                RuleItem(icon: "xmark.circle", color: "f87171", text: "Challenged invalid words are removed, player loses turn"),
+                                RuleItem(icon: "flag", color: "4ade80", text: "Standard in North American tournaments")
+                            ])
+                        } else {
+                            RuleSection(title: "UK/International (SOWPODS)", rules: [
+                                RuleItem(icon: "book.closed", color: "60a5fa", text: "Uses SOWPODS dictionary (larger word list)"),
+                                RuleItem(icon: "checkmark.circle", color: "4ade80", text: "Includes British spellings (colour, honour, etc.)"),
+                                RuleItem(icon: "globe", color: "f472b6", text: "Standard in UK and international tournaments")
+                            ])
+                        }
+                        
+                        // End game
+                        RuleSection(title: "Ending the Game", rules: [
+                            RuleItem(icon: "tray", color: "9ca3af", text: "Game ends when tile bag is empty and one player uses all tiles"),
+                            RuleItem(icon: "minus.circle", color: "f87171", text: "Players subtract value of remaining tiles from score"),
+                            RuleItem(icon: "plus.circle", color: "4ade80", text: "Player who went out adds other players' remaining tile values")
+                        ])
+                    }
+                    .padding(20)
+                }
+            }
+            .navigationTitle("Scrabble Rules")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .foregroundColor(Color(hex: "60a5fa"))
+                }
+            }
+            .toolbarBackground(Color(hex: "1a1a2e"), for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+        }
+    }
+}
+
+struct RuleSection: View {
+    let title: String
+    let rules: [RuleItem]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+            
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(rules) { rule in
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: rule.icon)
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(hex: rule.color))
+                            .frame(width: 20)
+                        
+                        Text(rule.text)
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.8))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white.opacity(0.05))
+            )
+        }
+    }
+}
+
+struct RuleItem: Identifiable {
+    let id = UUID()
+    let icon: String
+    let color: String
+    let text: String
 }
 
 // MARK: - Preview

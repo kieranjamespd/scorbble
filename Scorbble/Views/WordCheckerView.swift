@@ -15,6 +15,8 @@ struct WordCheckerView: View {
     @State private var letterTiles: [LetterTile] = []
     @State private var wordMultiplier: Int = 1
     @State private var hasBingo: Bool = false
+    @State private var showTileHelp = false
+    @State private var showRules = false
     
     @FocusState private var isInputFocused: Bool
     
@@ -171,9 +173,18 @@ struct WordCheckerView: View {
                                 VStack(spacing: 16) {
                                     // Letter tiles
                                     VStack(spacing: 8) {
-                                        Text("Tap = letter bonus • Hold = blank tile")
-                                            .font(.caption)
-                                            .foregroundColor(.white.opacity(0.4))
+                                        HStack {
+                                            Spacer()
+                                            Button(action: { showTileHelp = true }) {
+                                                Image(systemName: "info.circle")
+                                                    .font(.system(size: 16))
+                                                    .foregroundColor(.white.opacity(0.5))
+                                            }
+                                            .popover(isPresented: $showTileHelp) {
+                                                TileHelpView()
+                                                    .presentationCompactAdaptation(.popover)
+                                            }
+                                        }
                                         
                                         // Tiles - use HStack for short words, wrap for long
                                         if letterTiles.count <= 12 {
@@ -287,6 +298,19 @@ struct WordCheckerView: View {
                     .foregroundColor(.white.opacity(0.7))
                 }
             }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showRules = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "book")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Rules")
+                    }
+                    .foregroundColor(.white.opacity(0.7))
+                }
+            }
+        }
+        .sheet(isPresented: $showRules) {
+            ScrabbleRulesView()
         }
     }
     
