@@ -11,7 +11,7 @@ struct HomeView: View {
     // Navigation state
     @State private var showGameSetup = false
     @State private var showWordChecker = false
-    @State private var showPastGames = false
+    @State private var showLeaderboard = false
     
     // Launch animation state
     @State private var tileOpacities: [Double] = Array(repeating: 0, count: 8)
@@ -19,6 +19,7 @@ struct HomeView: View {
     @State private var subtitleOpacity: Double = 0
     @State private var buttonsOpacity: Double = 0
     @State private var buttonsOffset: CGFloat = 30
+    @State private var trophyOpacity: Double = 0
     @State private var hasAnimated = false
     
     var body: some View {
@@ -31,6 +32,32 @@ struct HomeView: View {
                     endPoint: .bottom
                 )
                 .ignoresSafeArea()
+                
+                // Trophy button in top right
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            HapticManager.lightTap()
+                            showLeaderboard = true
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color(hex: "fbbf24").opacity(0.15))
+                                    .frame(width: 44, height: 44)
+                                
+                                Image(systemName: "trophy.fill")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(Color(hex: "fbbf24"))
+                            }
+                        }
+                        .opacity(trophyOpacity)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    
+                    Spacer()
+                }
                 
                 VStack(spacing: 32) {
                     Spacer()
@@ -55,7 +82,7 @@ struct HomeView: View {
                     
                     Spacer()
                     
-                    // Main Menu Buttons with animation
+                    // Main Menu Buttons with animation (just 2 now)
                     VStack(spacing: 16) {
                         MenuButton(
                             title: "New Game",
@@ -68,20 +95,11 @@ struct HomeView: View {
                         
                         MenuButton(
                             title: "Word Checker",
-                            subtitle: "Verify valid words",
+                            subtitle: "Verify & score words",
                             icon: "text.book.closed.fill",
                             color: Color(hex: "60a5fa")
                         ) {
                             showWordChecker = true
-                        }
-                        
-                        MenuButton(
-                            title: "Past Games",
-                            subtitle: "View game history",
-                            icon: "clock.fill",
-                            color: Color(hex: "f472b6")
-                        ) {
-                            showPastGames = true
                         }
                     }
                     .padding(.horizontal, 24)
@@ -105,8 +123,9 @@ struct HomeView: View {
             .navigationDestination(isPresented: $showWordChecker) {
                 WordCheckerView()
             }
-            .navigationDestination(isPresented: $showPastGames) {
-                PastGamesView()
+            // Leaderboard sheet
+            .sheet(isPresented: $showLeaderboard) {
+                LeaderboardSheet()
             }
         }
     }
@@ -134,9 +153,10 @@ struct HomeView: View {
             }
         }
         
-        // Phase 2: Fade in subtitle
+        // Phase 2: Fade in subtitle and trophy
         withAnimation(.easeOut(duration: 0.4).delay(0.8)) {
             subtitleOpacity = 1.0
+            trophyOpacity = 1.0
         }
         
         // Phase 3: Slide up and fade in buttons
@@ -144,6 +164,261 @@ struct HomeView: View {
             buttonsOpacity = 1.0
             buttonsOffset = 0
         }
+    }
+}
+
+// MARK: - Leaderboard Sheet
+
+struct LeaderboardSheet: View {
+    @Environment(\.dismiss) var dismiss
+    @State private var selectedTab = 0
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color(hex: "1a1a2e").ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // Tab picker
+                    Picker("View", selection: $selectedTab) {
+                        Text("Leaderboard").tag(0)
+                        Text("Past Games").tag(1)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    
+                    if selectedTab == 0 {
+                        LeaderboardView()
+                    } else {
+                        PastGamesListView()
+                    }
+                }
+            }
+            .navigationTitle("History")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(Color(hex: "60a5fa"))
+                }
+            }
+            .toolbarBackground(Color(hex: "1a1a2e"), for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+        }
+    }
+}
+
+// MARK: - Leaderboard View
+
+struct LeaderboardView: View {
+    @ObservedObject private var gameStorage = GameStorage.shared
+    
+    var leaderboard: [(name: String, wins: Int, gamesPlayed: Int)] {
+        gameStorage.leaderboard
+    }
+    
+    var body: some View {
+        ScrollView {
+            if leaderboard.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "trophy")
+                        .font(.system(size: 48))
+                        .foregroundColor(.white.opacity(0.2))
+                    
+                    Text("No games played yet")
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.5))
+                    
+                    Text("Complete a game to see the leaderboard")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.3))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 60)
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(Array(leaderboard.enumerated()), id: \.offset) { index, entry in
+                        LeaderboardRow(
+                            rank: index + 1,
+                            name: entry.name,
+                            wins: entry.wins,
+                            gamesPlayed: entry.gamesPlayed
+                        )
+                    }
+                }
+                .padding(20)
+            }
+        }
+    }
+}
+
+struct LeaderboardRow: View {
+    let rank: Int
+    let name: String
+    let wins: Int
+    let gamesPlayed: Int
+    
+    var rankColor: Color {
+        switch rank {
+        case 1: return Color(hex: "fbbf24") // Gold
+        case 2: return Color(hex: "9ca3af") // Silver
+        case 3: return Color(hex: "cd7f32") // Bronze
+        default: return Color.white.opacity(0.5)
+        }
+    }
+    
+    var rankIcon: String {
+        switch rank {
+        case 1: return "trophy.fill"
+        case 2: return "medal.fill"
+        case 3: return "medal.fill"
+        default: return ""
+        }
+    }
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            // Rank
+            ZStack {
+                Circle()
+                    .fill(rankColor.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                
+                if rank <= 3 {
+                    Image(systemName: rankIcon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(rankColor)
+                } else {
+                    Text("\(rank)")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(rankColor)
+                }
+            }
+            
+            // Name and stats
+            VStack(alignment: .leading, spacing: 4) {
+                Text(name)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                
+                Text("\(gamesPlayed) games played")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.5))
+            }
+            
+            Spacer()
+            
+            // Wins
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(wins)")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(Color(hex: "4ade80"))
+                
+                Text("wins")
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.4))
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.05))
+        )
+    }
+}
+
+// MARK: - Past Games List View
+
+struct PastGamesListView: View {
+    @ObservedObject private var gameStorage = GameStorage.shared
+    
+    var body: some View {
+        ScrollView {
+            if gameStorage.savedGames.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 48))
+                        .foregroundColor(.white.opacity(0.2))
+                    
+                    Text("No games yet")
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.5))
+                    
+                    Text("Completed games will appear here")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.3))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 60)
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(gameStorage.savedGames.reversed()) { game in
+                        PastGameRow(game: game)
+                    }
+                }
+                .padding(20)
+            }
+        }
+    }
+}
+
+struct PastGameRow: View {
+    let game: SavedGame
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Date and winner
+            HStack {
+                Text(game.date, style: .date)
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.5))
+                
+                Spacer()
+                
+                if game.winnerName == "Tie" {
+                    Text("🤝 Tie Game")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(hex: "fbbf24"))
+                } else {
+                    Text("🏆 \(game.winnerName)")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(hex: "4ade80"))
+                }
+            }
+            
+            // Players and scores
+            HStack(spacing: 12) {
+                ForEach(game.players, id: \.name) { player in
+                    VStack(spacing: 4) {
+                        Text(player.name)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                        
+                        Text("\(player.score)")
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(player.name == game.winnerName ? Color(hex: "4ade80") : .white.opacity(0.6))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.05))
+        )
     }
 }
 
