@@ -258,12 +258,8 @@ struct LeaderboardRow: View {
     let wins: Int
     let gamesPlayed: Int
     
-    var winRatio: Double {
-        gamesPlayed > 0 ? Double(wins) / Double(gamesPlayed) : 0
-    }
-    
-    var winPercentage: Int {
-        Int(winRatio * 100)
+    var ratioString: String {
+        "\(wins):\(gamesPlayed)"
     }
     
     var rankColor: Color {
@@ -320,14 +316,14 @@ struct LeaderboardRow: View {
             
             // Win ratio
             VStack(alignment: .trailing, spacing: 2) {
-                Text("\(winPercentage)%")
+                Text(ratioString)
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(Color(hex: "4ade80"))
                 
-                Text("\(wins)W")
+                Text("wins")
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundColor(.white.opacity(0.4))
             }
         }
         .padding(16)
