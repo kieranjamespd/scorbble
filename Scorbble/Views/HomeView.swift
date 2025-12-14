@@ -241,7 +241,8 @@ struct LeaderboardView: View {
                         LeaderboardRow(
                             rank: index + 1,
                             name: entry.name,
-                            wins: entry.wins
+                            wins: entry.wins,
+                            gamesPlayed: entry.gamesPlayed
                         )
                     }
                 }
@@ -255,6 +256,15 @@ struct LeaderboardRow: View {
     let rank: Int
     let name: String
     let wins: Int
+    let gamesPlayed: Int
+    
+    var winRatio: Double {
+        gamesPlayed > 0 ? Double(wins) / Double(gamesPlayed) : 0
+    }
+    
+    var winPercentage: Int {
+        Int(winRatio * 100)
+    }
     
     var rankColor: Color {
         switch rank {
@@ -275,7 +285,7 @@ struct LeaderboardRow: View {
     }
     
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             // Rank
             ZStack {
                 Circle()
@@ -294,23 +304,29 @@ struct LeaderboardRow: View {
                 }
             }
             
-            // Name
-            Text(name)
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
+            // Name and games played
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                
+                Text("\(gamesPlayed) \(gamesPlayed == 1 ? "game" : "games")")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.4))
+            }
             
             Spacer()
             
-            // Wins
-            HStack(spacing: 4) {
-                Text("\(wins)")
+            // Win ratio
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(winPercentage)%")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(Color(hex: "4ade80"))
                 
-                Text(wins == 1 ? "win" : "wins")
-                    .font(.subheadline)
+                Text("\(wins)W")
+                    .font(.caption)
                     .foregroundColor(.white.opacity(0.5))
             }
         }

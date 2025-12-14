@@ -84,20 +84,33 @@ class GameStorage: ObservableObject {
         savedGames.count
     }
     
-    /// Get win counts for each player (excludes ties)
-    var leaderboard: [(name: String, wins: Int)] {
+    /// Get win counts and games played for each player
+    var leaderboard: [(name: String, wins: Int, gamesPlayed: Int)] {
         var winCounts: [String: Int] = [:]
+        var gameCounts: [String: Int] = [:]
         
         for game in savedGames {
-            // Don't count ties as wins
+            // Count games played for each player
+            for player in game.players {
+                gameCounts[player.name, default: 0] += 1
+            }
+            
+            // Count wins (don't count ties)
             if game.winnerName != "Tie" {
                 winCounts[game.winnerName, default: 0] += 1
             }
         }
         
-        return winCounts
-            .map { (name: $0.key, wins: $0.value) }
-            .sorted { $0.wins > $1.wins }
+        // Build leaderboard with all players who have played
+        return gameCounts
+            .map { (name: $0.key, wins: winCounts[$0.key] ?? 0, gamesPlayed: $0.value) }
+            .sorted { 
+                // Sort by win ratio first, then by total wins
+                let ratio1 = $0.gamesPlayed > 0 ? Double($0.wins) / Double($0.gamesPlayed) : 0
+                let ratio2 = $1.gamesPlayed > 0 ? Double($1.wins) / Double($1.gamesPlayed) : 0
+                if ratio1 != ratio2 { return ratio1 > ratio2 }
+                return $0.wins > $1.wins
+            }
     }
     
     /// Highest score ever
