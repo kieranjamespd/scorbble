@@ -218,16 +218,9 @@ struct ActiveGameView: View {
             ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
                 let isCurrentTurn = index == currentPlayerIndex
                 
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(player.color)
-                        .frame(width: 8, height: 8)
-                    
-                    Text(player.name)
-                        .font(.caption)
-                        .fontWeight(isCurrentTurn ? .bold : .medium)
-                        .foregroundColor(.white)
-                        .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(player.emoji)
+                        .font(.system(size: 14))
                     
                     Text("\(player.score)")
                         .font(.caption)
@@ -257,10 +250,9 @@ struct ActiveGameView: View {
     // MARK: - Current Turn Banner
     
     var currentTurnBanner: some View {
-        HStack {
-            Circle()
-                .fill(currentPlayer.color)
-                .frame(width: 12, height: 12)
+        HStack(spacing: 8) {
+            Text(currentPlayer.emoji)
+                .font(.system(size: 20))
             
             Text("\(currentPlayer.name)'s Turn")
                 .font(.headline)
@@ -645,7 +637,17 @@ struct ActiveGameView: View {
     }
     
     var gameOverView: some View {
-        VStack(spacing: 32) {
+        ZStack {
+            // Confetti overlay for winner (not for ties)
+            if let winner = winner {
+                ConfettiView(
+                    emoji: winner.emoji,
+                    playerColor: winner.color
+                )
+                .ignoresSafeArea()
+            }
+            
+            VStack(spacing: 32) {
             Spacer()
             
             // Icon - trophy for winner, handshake for tie
@@ -697,10 +699,9 @@ struct ActiveGameView: View {
                     .tracking(2)
                 
                 ForEach(players.sorted(by: { $0.score > $1.score })) { player in
-                    HStack {
-                        Circle()
-                            .fill(player.color)
-                            .frame(width: 12, height: 12)
+                    HStack(spacing: 12) {
+                        Text(player.emoji)
+                            .font(.system(size: 24))
                         
                         Text(player.name)
                             .font(.headline)
@@ -767,6 +768,7 @@ struct ActiveGameView: View {
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 40)
+            }
         }
     }
     
@@ -894,7 +896,11 @@ struct PlayerScoreCard: View {
     let isCurrentTurn: Bool
     
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
+            // Emoji avatar
+            Text(player.emoji)
+                .font(.system(size: 28))
+            
             Text(player.name)
                 .font(.caption)
                 .fontWeight(.medium)
@@ -1233,6 +1239,217 @@ struct RuleItem: Identifiable {
     let icon: String
     let color: String
     let text: String
+}
+
+// MARK: - Confetti Celebration
+
+struct ConfettiView: View {
+    let emoji: String
+    let playerColor: Color
+    
+    @State private var particles: [ConfettiParticle] = []
+    @State private var isAnimating = false
+    
+    // Mix of player color, general celebration colors
+    var confettiColors: [Color] {
+        [
+            playerColor,
+            playerColor.opacity(0.7),
+            Color(hex: "fbbf24"), // Gold
+            Color(hex: "4ade80"), // Green
+            Color(hex: "60a5fa"), // Blue
+            Color(hex: "f472b6"), // Pink
+            Color(hex: "a78bfa"), // Purple
+            .white
+        ]
+    }
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                ForEach(particles) { particle in
+                    ConfettiPiece(particle: particle, emoji: emoji)
+                }
+            }
+            .onAppear {
+                createParticles(in: geometry.size)
+                
+                // Haptic bursts for each wave
+                HapticManager.success()
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    HapticManager.mediumImpact()
+                }
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                    HapticManager.lightTap()
+                }
+                
+                // Trigger animation
+                withAnimation(.linear(duration: 0.01)) {
+                    isAnimating = true
+                }
+            }
+        }
+    }
+    
+    private func createParticles(in size: CGSize) {
+        var newParticles: [ConfettiParticle] = []
+        
+        // Wave 1: Initial burst - 200 particles
+        for i in 0..<200 {
+            let isEmoji = i < 50 // First 50 are emoji
+            let startX = CGFloat.random(in: -50...(size.width + 50))
+            let startY = CGFloat.random(in: -250...(-30))
+            
+            let particle = ConfettiParticle(
+                id: i,
+                x: startX,
+                y: startY,
+                rotation: Double.random(in: 0...360),
+                scale: CGFloat.random(in: 0.6...1.5),
+                color: confettiColors.randomElement() ?? playerColor,
+                isEmoji: isEmoji,
+                delay: Double.random(in: 0...1.5), // First wave over 1.5 seconds
+                duration: Double.random(in: 4.0...7.0), // Long fall time
+                endY: size.height + 200,
+                horizontalDrift: CGFloat.random(in: -150...150),
+                spinSpeed: Double.random(in: 200...1000)
+            )
+            newParticles.append(particle)
+        }
+        
+        // Wave 2: Second burst - 150 particles starting later
+        for i in 200..<350 {
+            let isEmoji = i < 240 // 40 more emoji
+            let startX = CGFloat.random(in: -50...(size.width + 50))
+            let startY = CGFloat.random(in: -200...(-20))
+            
+            let particle = ConfettiParticle(
+                id: i,
+                x: startX,
+                y: startY,
+                rotation: Double.random(in: 0...360),
+                scale: CGFloat.random(in: 0.5...1.3),
+                color: confettiColors.randomElement() ?? playerColor,
+                isEmoji: isEmoji,
+                delay: Double.random(in: 1.5...3.0), // Second wave starts at 1.5s
+                duration: Double.random(in: 3.5...6.0),
+                endY: size.height + 150,
+                horizontalDrift: CGFloat.random(in: -120...120),
+                spinSpeed: Double.random(in: 180...800)
+            )
+            newParticles.append(particle)
+        }
+        
+        // Wave 3: Final flourish - 100 particles
+        for i in 350..<450 {
+            let isEmoji = i < 375 // 25 more emoji
+            let startX = CGFloat.random(in: -30...(size.width + 30))
+            let startY = CGFloat.random(in: -150...(-10))
+            
+            let particle = ConfettiParticle(
+                id: i,
+                x: startX,
+                y: startY,
+                rotation: Double.random(in: 0...360),
+                scale: CGFloat.random(in: 0.4...1.2),
+                color: confettiColors.randomElement() ?? playerColor,
+                isEmoji: isEmoji,
+                delay: Double.random(in: 3.0...4.5), // Third wave starts at 3s
+                duration: Double.random(in: 3.0...5.0),
+                endY: size.height + 100,
+                horizontalDrift: CGFloat.random(in: -100...100),
+                spinSpeed: Double.random(in: 150...600)
+            )
+            newParticles.append(particle)
+        }
+        
+        particles = newParticles
+    }
+}
+
+struct ConfettiParticle: Identifiable {
+    let id: Int
+    let x: CGFloat
+    let y: CGFloat
+    let rotation: Double
+    let scale: CGFloat
+    let color: Color
+    let isEmoji: Bool
+    let delay: Double
+    let duration: Double
+    let endY: CGFloat
+    let horizontalDrift: CGFloat
+    let spinSpeed: Double
+}
+
+struct ConfettiPiece: View {
+    let particle: ConfettiParticle
+    let emoji: String
+    
+    @State private var currentY: CGFloat = 0
+    @State private var currentX: CGFloat = 0
+    @State private var currentRotation: Double = 0
+    @State private var opacity: Double = 1
+    
+    var body: some View {
+        Group {
+            if particle.isEmoji {
+                Text(emoji)
+                    .font(.system(size: 24 * particle.scale))
+            } else {
+                // Random shape - rectangle, circle, or capsule
+                confettiShape
+                    .frame(width: 10 * particle.scale, height: 14 * particle.scale)
+            }
+        }
+        .rotationEffect(.degrees(currentRotation))
+        .position(x: particle.x + currentX, y: particle.y + currentY)
+        .opacity(opacity)
+        .onAppear {
+            // Animate falling
+            withAnimation(
+                .easeIn(duration: particle.duration)
+                .delay(particle.delay)
+            ) {
+                currentY = particle.endY
+                currentX = particle.horizontalDrift
+            }
+            
+            // Animate spinning
+            withAnimation(
+                .linear(duration: particle.duration)
+                .delay(particle.delay)
+                .repeatCount(Int(particle.duration * 2), autoreverses: false)
+            ) {
+                currentRotation = particle.spinSpeed
+            }
+            
+            // Fade out near end
+            withAnimation(
+                .easeIn(duration: 0.5)
+                .delay(particle.delay + particle.duration - 0.5)
+            ) {
+                opacity = 0
+            }
+        }
+    }
+    
+    @ViewBuilder
+    var confettiShape: some View {
+        switch particle.id % 3 {
+        case 0:
+            Rectangle()
+                .fill(particle.color)
+        case 1:
+            Circle()
+                .fill(particle.color)
+        default:
+            Capsule()
+                .fill(particle.color)
+        }
+    }
 }
 
 // MARK: - Preview

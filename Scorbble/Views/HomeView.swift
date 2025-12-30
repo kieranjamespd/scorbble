@@ -216,6 +216,12 @@ struct LeaderboardSheet: View {
 
 struct LeaderboardView: View {
     @ObservedObject private var gameStorage = GameStorage.shared
+    @ObservedObject private var profileStorage = ProfileStorage.shared
+    
+    /// Get emoji for a player name from their profile
+    func emojiForPlayer(_ name: String) -> String {
+        profileStorage.findProfile(name: name)?.preferredEmoji ?? "😊"
+    }
     
     var body: some View {
         ScrollView {
@@ -241,6 +247,7 @@ struct LeaderboardView: View {
                         LeaderboardRow(
                             rank: index + 1,
                             name: entry.name,
+                            emoji: emojiForPlayer(entry.name),
                             wins: entry.wins,
                             gamesPlayed: entry.gamesPlayed
                         )
@@ -255,6 +262,7 @@ struct LeaderboardView: View {
 struct LeaderboardRow: View {
     let rank: Int
     let name: String
+    let emoji: String
     let wins: Int
     let gamesPlayed: Int
     
@@ -282,7 +290,7 @@ struct LeaderboardRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // Rank
+            // Rank badge
             ZStack {
                 Circle()
                     .fill(rankColor.opacity(0.2))
@@ -299,6 +307,10 @@ struct LeaderboardRow: View {
                         .foregroundColor(rankColor)
                 }
             }
+            
+            // Emoji avatar
+            Text(emoji)
+                .font(.system(size: 24))
             
             // Name and games played
             VStack(alignment: .leading, spacing: 2) {
@@ -395,14 +407,17 @@ struct PastGameRow: View {
                 }
             }
             
-            // Players and scores
+            // Players and scores with emoji
             HStack(spacing: 12) {
                 ForEach(game.players, id: \.name) { player in
                     VStack(spacing: 4) {
+                        Text(player.emoji)
+                            .font(.system(size: 24))
+                        
                         Text(player.name)
-                            .font(.subheadline)
+                            .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(.white)
+                            .foregroundColor(.white.opacity(0.7))
                             .lineLimit(1)
                         
                         Text("\(player.score)")

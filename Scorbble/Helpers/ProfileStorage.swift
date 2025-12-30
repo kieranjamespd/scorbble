@@ -27,14 +27,14 @@ class ProfileStorage: ObservableObject {
     // MARK: - Public Methods
     
     /// Get or create a profile for a player name
-    func getOrCreateProfile(name: String, colorName: String) -> PlayerProfile {
+    func getOrCreateProfile(name: String, colorName: String, emoji: String = "😊") -> PlayerProfile {
         // Check if profile exists (case-insensitive match)
         if let existing = profiles.first(where: { $0.name.lowercased() == name.lowercased() }) {
             return existing
         }
         
         // Create new profile
-        let profile = PlayerProfile(name: name, preferredColorName: colorName)
+        let profile = PlayerProfile(name: name, preferredColorName: colorName, preferredEmoji: emoji)
         profiles.append(profile)
         persistProfiles()
         return profile
@@ -72,6 +72,16 @@ class ProfileStorage: ObservableObject {
         }
         
         profiles[index].preferredColorName = colorName
+        persistProfiles()
+    }
+    
+    /// Update preferred emoji for a profile
+    func updatePreferredEmoji(for playerName: String, emoji: String) {
+        guard let index = profiles.firstIndex(where: { $0.name.lowercased() == playerName.lowercased() }) else {
+            return
+        }
+        
+        profiles[index].preferredEmoji = emoji
         persistProfiles()
     }
     

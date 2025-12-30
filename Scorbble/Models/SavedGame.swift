@@ -85,12 +85,14 @@ struct SavedPlayer: Identifiable, Codable {
     let name: String
     let score: Int
     let colorName: String
+    let emoji: String
     
-    init(id: UUID = UUID(), name: String, score: Int, colorName: String) {
+    init(id: UUID = UUID(), name: String, score: Int, colorName: String, emoji: String = "😊") {
         self.id = id
         self.name = name
         self.score = score
         self.colorName = colorName
+        self.emoji = emoji
     }
     
     /// Create from an active Player
@@ -99,6 +101,17 @@ struct SavedPlayer: Identifiable, Codable {
         self.name = player.name
         self.score = player.score
         self.colorName = player.colorName
+        self.emoji = player.emoji
+    }
+    
+    // Custom decoder to handle existing saved games without emoji
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        score = try container.decode(Int.self, forKey: .score)
+        colorName = try container.decode(String.self, forKey: .colorName)
+        emoji = try container.decodeIfPresent(String.self, forKey: .emoji) ?? "😊"
     }
     
     /// Get SwiftUI Color from color name
@@ -122,9 +135,9 @@ extension SavedGame {
         SavedGame(
             date: Date(),
             players: [
-                SavedPlayer(name: "Emma", score: 287, colorName: "purple"),
-                SavedPlayer(name: "Kieran", score: 245, colorName: "blue"),
-                SavedPlayer(name: "Sarah", score: 198, colorName: "green")
+                SavedPlayer(name: "Emma", score: 287, colorName: "purple", emoji: "🦄"),
+                SavedPlayer(name: "Kieran", score: 245, colorName: "blue", emoji: "😎"),
+                SavedPlayer(name: "Sarah", score: 198, colorName: "green", emoji: "🦊")
             ],
             winnerName: "Emma",
             winnerScore: 287
@@ -132,8 +145,8 @@ extension SavedGame {
         SavedGame(
             date: Date().addingTimeInterval(-86400), // Yesterday
             players: [
-                SavedPlayer(name: "Kieran", score: 312, colorName: "blue"),
-                SavedPlayer(name: "Mike", score: 289, colorName: "orange")
+                SavedPlayer(name: "Kieran", score: 312, colorName: "blue", emoji: "😎"),
+                SavedPlayer(name: "Mike", score: 289, colorName: "orange", emoji: "🎯")
             ],
             winnerName: "Kieran",
             winnerScore: 312
@@ -141,10 +154,10 @@ extension SavedGame {
         SavedGame(
             date: Date().addingTimeInterval(-172800), // 2 days ago
             players: [
-                SavedPlayer(name: "Sarah", score: 256, colorName: "green"),
-                SavedPlayer(name: "Emma", score: 234, colorName: "purple"),
-                SavedPlayer(name: "Kieran", score: 221, colorName: "blue"),
-                SavedPlayer(name: "Mike", score: 198, colorName: "orange")
+                SavedPlayer(name: "Sarah", score: 256, colorName: "green", emoji: "🦊"),
+                SavedPlayer(name: "Emma", score: 234, colorName: "purple", emoji: "🦄"),
+                SavedPlayer(name: "Kieran", score: 221, colorName: "blue", emoji: "😎"),
+                SavedPlayer(name: "Mike", score: 198, colorName: "orange", emoji: "🎯")
             ],
             winnerName: "Sarah",
             winnerScore: 256

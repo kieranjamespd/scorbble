@@ -15,6 +15,7 @@ struct GameSetupView: View {
     @State private var players: [PlayerSetup] = []
     @State private var newPlayerName: String = ""
     @State private var selectedColorIndex: Int = 0
+    @State private var selectedEmojiIndex: Int = 0
     
     // Profile suggestions
     @State private var showSuggestions = false
@@ -309,6 +310,39 @@ struct GameSetupView: View {
                 }
                 .padding(.horizontal, 4)
                 
+                // Emoji picker
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Avatar")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.6))
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Array(Player.availableEmojis.enumerated()), id: \.offset) { index, emoji in
+                                Text(emoji)
+                                    .font(.system(size: 24))
+                                    .frame(width: 40, height: 40)
+                                    .background(
+                                        Circle()
+                                            .fill(selectedEmojiIndex == index ? Color.white.opacity(0.2) : Color.clear)
+                                    )
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.white, lineWidth: selectedEmojiIndex == index ? 2 : 0)
+                                    )
+                                    .scaleEffect(selectedEmojiIndex == index ? 1.15 : 1.0)
+                                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: selectedEmojiIndex)
+                                    .onTapGesture {
+                                        selectedEmojiIndex = index
+                                        HapticManager.selectionChanged()
+                                    }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+                .padding(.horizontal, 4)
+                
                 // Name input and add button
                 VStack(spacing: 8) {
                     HStack(spacing: 12) {
@@ -385,12 +419,13 @@ struct GameSetupView: View {
     }
     
     /// Select a profile from chips - adds player directly
-    /// Returning players get priority for their preferred color
+    /// Returning players get priority for their preferred color and emoji
     func selectProfile(_ profile: PlayerProfile) {
         // Check if we can add more players
         guard players.count < 4 else { return }
         
         let preferredColor = profile.preferredColorName
+        let preferredEmoji = profile.preferredEmoji
         
         HapticManager.mediumImpact()
         
@@ -398,7 +433,7 @@ struct GameSetupView: View {
             // Check if their preferred color is available
             if availableColors.contains(preferredColor) {
                 // Great! They get their preferred color
-                let newPlayer = PlayerSetup(name: profile.name, colorName: preferredColor)
+                let newPlayer = PlayerSetup(name: profile.name, colorName: preferredColor, emoji: preferredEmoji)
                 players.append(newPlayer)
             } else {
                 // Their color is taken - find who has it and swap
@@ -408,12 +443,12 @@ struct GameSetupView: View {
                     players[takenIndex].colorName = newColorForExisting
                     
                     // Now add the profile player with their preferred color
-                    let newPlayer = PlayerSetup(name: profile.name, colorName: preferredColor)
+                    let newPlayer = PlayerSetup(name: profile.name, colorName: preferredColor, emoji: preferredEmoji)
                     players.append(newPlayer)
                 } else {
                     // Fallback: just use first available color
                     let fallbackColor = availableColors.first ?? Player.availableColors.first ?? "blue"
-                    let newPlayer = PlayerSetup(name: profile.name, colorName: fallbackColor)
+                    let newPlayer = PlayerSetup(name: profile.name, colorName: fallbackColor, emoji: preferredEmoji)
                     players.append(newPlayer)
                 }
             }
@@ -448,7 +483,11 @@ struct GameSetupView: View {
         let colorIndex = min(selectedColorIndex, availableColors.count - 1)
         let colorName = availableColors[colorIndex]
         
-        let newPlayer = PlayerSetup(name: trimmedName, colorName: colorName)
+        // Get selected emoji
+        let emojiIndex = min(selectedEmojiIndex, Player.availableEmojis.count - 1)
+        let emoji = Player.availableEmojis[emojiIndex]
+        
+        let newPlayer = PlayerSetup(name: trimmedName, colorName: colorName, emoji: emoji)
         
         HapticManager.mediumImpact()
         
@@ -457,12 +496,14 @@ struct GameSetupView: View {
         }
         
         // Save or update player profile
-        _ = profileStorage.getOrCreateProfile(name: trimmedName, colorName: colorName)
+        _ = profileStorage.getOrCreateProfile(name: trimmedName, colorName: colorName, emoji: emoji)
         profileStorage.updatePreferredColor(for: trimmedName, colorName: colorName)
+        profileStorage.updatePreferredEmoji(for: trimmedName, emoji: emoji)
         
         // Reset input and hide suggestions
         newPlayerName = ""
         selectedColorIndex = 0
+        selectedEmojiIndex = 0
         isNameFieldFocused = false
         showSuggestions = false
     }
@@ -470,7 +511,7 @@ struct GameSetupView: View {
     func startGame() {
         // Convert PlayerSetup to Player objects (with score starting at 0)
         gamePlayers = players.map { setup in
-            Player(name: setup.name, score: 0, colorName: setup.colorName)
+            Player(name: setup.name, score: 0, colorName: setup.colorName, emoji: setup.emoji)
         }
         
         // Navigate to the active game
@@ -497,6 +538,7 @@ struct PlayerSetup: Identifiable {
     let id = UUID()
     var name: String
     var colorName: String
+    var emoji: String
 }
 
 // MARK: - Player Row Component
@@ -509,15 +551,15 @@ struct PlayerRow: View {
     
     var body: some View {
         HStack(spacing: compact ? 12 : 16) {
-            // Player color indicator
-            Circle()
-                .fill(colorFromName(player.colorName))
-                .frame(width: compact ? 28 : 40, height: compact ? 28 : 40)
-                .overlay(
-                    Text("\(playerNumber)")
-                        .font(.system(size: compact ? 12 : 16, weight: .bold))
-                        .foregroundColor(.white)
-                )
+            // Player emoji avatar with color background
+            ZStack {
+                Circle()
+                    .fill(colorFromName(player.colorName))
+                    .frame(width: compact ? 32 : 44, height: compact ? 32 : 44)
+                
+                Text(player.emoji)
+                    .font(.system(size: compact ? 16 : 22))
+            }
             
             // Player name
             Text(player.name)
@@ -563,10 +605,15 @@ struct ProfileChip: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: compact ? 6 : 10) {
-                // Color dot
-                Circle()
-                    .fill(profile.preferredColor)
-                    .frame(width: compact ? 18 : 24, height: compact ? 18 : 24)
+                // Emoji avatar with color background
+                ZStack {
+                    Circle()
+                        .fill(profile.preferredColor)
+                        .frame(width: compact ? 22 : 28, height: compact ? 22 : 28)
+                    
+                    Text(profile.preferredEmoji)
+                        .font(.system(size: compact ? 12 : 16))
+                }
                 
                 // Name
                 Text(profile.name)

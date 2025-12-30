@@ -240,10 +240,9 @@ struct GameHistoryCard: View {
                         .background(Color.white.opacity(0.1))
                     
                     ForEach(game.players.sorted(by: { $0.score > $1.score })) { player in
-                        HStack {
-                            Circle()
-                                .fill(player.color)
-                                .frame(width: 8, height: 8)
+                        HStack(spacing: 10) {
+                            Text(player.emoji)
+                                .font(.system(size: 20))
                             
                             Text(player.name)
                                 .font(.subheadline)
