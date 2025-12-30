@@ -12,6 +12,7 @@ struct PlayerProfile: Identifiable, Codable, Equatable {
     let id: UUID
     var name: String
     var preferredColorName: String
+    var preferredEmoji: String
     var gamesPlayed: Int
     var totalWins: Int
     var highestScore: Int
@@ -21,6 +22,7 @@ struct PlayerProfile: Identifiable, Codable, Equatable {
         id: UUID = UUID(),
         name: String,
         preferredColorName: String = "blue",
+        preferredEmoji: String = "😊",
         gamesPlayed: Int = 0,
         totalWins: Int = 0,
         highestScore: Int = 0,
@@ -29,10 +31,24 @@ struct PlayerProfile: Identifiable, Codable, Equatable {
         self.id = id
         self.name = name
         self.preferredColorName = preferredColorName
+        self.preferredEmoji = preferredEmoji
         self.gamesPlayed = gamesPlayed
         self.totalWins = totalWins
         self.highestScore = highestScore
         self.lastPlayed = lastPlayed
+    }
+    
+    // Custom decoder to handle existing profiles without emoji
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        preferredColorName = try container.decode(String.self, forKey: .preferredColorName)
+        preferredEmoji = try container.decodeIfPresent(String.self, forKey: .preferredEmoji) ?? "😊"
+        gamesPlayed = try container.decode(Int.self, forKey: .gamesPlayed)
+        totalWins = try container.decode(Int.self, forKey: .totalWins)
+        highestScore = try container.decode(Int.self, forKey: .highestScore)
+        lastPlayed = try container.decodeIfPresent(Date.self, forKey: .lastPlayed)
     }
     
     /// Get SwiftUI Color from color name

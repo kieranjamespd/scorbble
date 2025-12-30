@@ -12,11 +12,13 @@ import SwiftUI
 /// - name: The player's display name
 /// - score: Their current total score
 /// - colorName: A color to visually distinguish them
+/// - emoji: An emoji avatar for the player
 struct Player: Identifiable {
     let id = UUID()
     var name: String
     var score: Int = 0
     var colorName: String
+    var emoji: String = "😊"
     
     /// Returns the SwiftUI Color for this player
     var color: Color {
@@ -38,13 +40,25 @@ struct Player: Identifiable {
 extension Player {
     /// Sample players for testing and previews
     static let mockPlayers: [Player] = [
-        Player(name: "Kieran", score: 127, colorName: "blue"),
-        Player(name: "Sarah", score: 143, colorName: "green"),
-        Player(name: "Mike", score: 98, colorName: "orange"),
-        Player(name: "Emma", score: 156, colorName: "purple")
+        Player(name: "Kieran", score: 127, colorName: "blue", emoji: "😎"),
+        Player(name: "Sarah", score: 143, colorName: "green", emoji: "🦊"),
+        Player(name: "Mike", score: 98, colorName: "orange", emoji: "🎯"),
+        Player(name: "Emma", score: 156, colorName: "purple", emoji: "🦄")
     ]
     
     /// Available colors for players to choose
     static let availableColors = ["blue", "green", "orange", "purple", "red", "pink"]
+    
+    /// Available emojis for player avatars
+    static let availableEmojis = [
+        // Faces
+        "😊", "😎", "🤓", "😏", "🧐", "🤠", "😈", "👻",
+        // Animals
+        "🦊", "🐱", "🐶", "🦁", "🐼", "🦄", "🐸", "🦉",
+        // Objects & Symbols
+        "⭐️", "🎯", "🎲", "🎪", "🚀", "💎", "🔥", "⚡️",
+        // Food & Nature
+        "🌸", "🌵", "🍀", "🌙", "🌈", "🍕", "🎸", "🎨"
+    ]
 }
 
