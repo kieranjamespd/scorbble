@@ -41,6 +41,10 @@ struct ActiveGameView: View {
     @State private var showTileHelp = false
     @State private var showRules = false
     
+    // Share
+    @State private var showShareSheet = false
+    @State private var shareImage: UIImage? = nil
+    
     // Keyboard tracking
     @FocusState private var isInputFocused: Bool
     
@@ -170,6 +174,15 @@ struct ActiveGameView: View {
         }
         .sheet(isPresented: $showRules) {
             ScrabbleRulesView()
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let image = shareImage {
+                ShareSheetView(
+                    image: image,
+                    winner: winner,
+                    isTie: isTieGame
+                )
+            }
         }
         .alert("End Game?", isPresented: $showEndGameAlert) {
             Button("Cancel", role: .cancel) { }
@@ -636,6 +649,27 @@ struct ActiveGameView: View {
         players.map { $0.score }.max() ?? 0
     }
     
+    /// Get the highest scoring word played
+    var bestWord: (word: String, points: Int, player: String)? {
+        turnHistory
+            .filter { $0.word != nil }
+            .max(by: { $0.points < $1.points })
+            .map { ($0.word!, $0.points, $0.playerName) }
+    }
+    
+    /// Get the longest word played
+    var longestWord: (word: String, length: Int, player: String)? {
+        turnHistory
+            .filter { $0.word != nil }
+            .max(by: { ($0.word?.count ?? 0) < ($1.word?.count ?? 0) })
+            .map { ($0.word!, $0.word!.count, $0.playerName) }
+    }
+    
+    /// Total turns played
+    var totalTurns: Int {
+        turnHistory.count
+    }
+    
     var gameOverView: some View {
         ZStack {
             // Confetti overlay for winner (not for ties)
@@ -723,6 +757,26 @@ struct ActiveGameView: View {
                 }
             }
             .padding(.horizontal, 24)
+            
+            // Share button
+            Button(action: {
+                generateShareImage()
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Share Results")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white.opacity(0.8))
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(
+                    Capsule()
+                        .fill(Color.white.opacity(0.15))
+                )
+            }
             
             Spacer()
             
@@ -886,6 +940,33 @@ struct ActiveGameView: View {
         canUndo = false
         lastTurnPlayerIndex = nil
         lastTurnPoints = nil
+    }
+    
+    func generateShareImage() {
+        // Get winner's profile for win rate
+        let winnerProfile = winner.flatMap { w in
+            ProfileStorage.shared.profiles.first { $0.name.lowercased() == w.name.lowercased() }
+        }
+        
+        let shareCard = GameShareCard(
+            winner: winner,
+            isTie: isTieGame,
+            tiedScore: tiedScore,
+            players: players,
+            bestWord: bestWord,
+            longestWord: longestWord,
+            totalTurns: totalTurns,
+            winnerWinRate: winnerProfile?.winRate
+        )
+        
+        let renderer = ImageRenderer(content: shareCard)
+        renderer.scale = 3.0 // High resolution
+        
+        if let uiImage = renderer.uiImage {
+            shareImage = uiImage
+            showShareSheet = true
+            HapticManager.mediumImpact()
+        }
     }
 }
 
@@ -1449,6 +1530,414 @@ struct ConfettiPiece: View {
             Capsule()
                 .fill(particle.color)
         }
+    }
+}
+
+// MARK: - Game Share Card
+
+struct GameShareCard: View {
+    let winner: Player?
+    let isTie: Bool
+    let tiedScore: Int
+    let players: [Player]
+    let bestWord: (word: String, points: Int, player: String)?
+    let longestWord: (word: String, length: Int, player: String)?
+    let totalTurns: Int
+    let winnerWinRate: Int?
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with gradient - more compact
+            ZStack {
+                // Background gradient
+                LinearGradient(
+                    colors: [Color(hex: "1a1a2e"), Color(hex: "16213e")],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                
+                VStack(spacing: 10) {
+                    // App branding
+                    Text("SCORBBLE")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .tracking(3)
+                        .foregroundColor(.white.opacity(0.4))
+                    
+                    if isTie {
+                        // Tie result
+                        Image(systemName: "hands.clap.fill")
+                            .font(.system(size: 36))
+                            .foregroundColor(Color(hex: "60a5fa"))
+                        
+                        Text("It's a Tie!")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.white)
+                        
+                        Text("\(tiedScore) points each")
+                            .font(.subheadline)
+                            .foregroundColor(Color(hex: "60a5fa"))
+                    } else if let winner = winner {
+                        // Winner emoji + trophy
+                        HStack(spacing: 8) {
+                            Image(systemName: "trophy.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(Color(hex: "fbbf24"))
+                            Text(winner.emoji)
+                                .font(.system(size: 44))
+                            Image(systemName: "trophy.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(Color(hex: "fbbf24"))
+                        }
+                        
+                        // Winner name
+                        Text(winner.name)
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.white)
+                        
+                        // Winner stats in a row
+                        HStack(spacing: 20) {
+                            HStack(spacing: 4) {
+                                Text("\(winner.score)")
+                                    .font(.system(size: 22, weight: .bold))
+                                    .foregroundColor(Color(hex: "4ade80"))
+                                Text("pts")
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
+                            
+                            if let winRate = winnerWinRate, winRate > 0 {
+                                HStack(spacing: 4) {
+                                    Text("\(winRate)%")
+                                        .font(.system(size: 22, weight: .bold))
+                                        .foregroundColor(Color(hex: "fbbf24"))
+                                    Text("wins")
+                                        .font(.caption)
+                                        .foregroundColor(.white.opacity(0.5))
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.vertical, 20)
+            }
+            .frame(height: 200)
+            
+            // Stats section - more room
+            VStack(spacing: 14) {
+                // All player scores
+                HStack(spacing: 10) {
+                    ForEach(players.sorted(by: { $0.score > $1.score })) { player in
+                        VStack(spacing: 4) {
+                            Text(player.emoji)
+                                .font(.system(size: 22))
+                            Text(player.name)
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white.opacity(0.8))
+                                .lineLimit(1)
+                            Text("\(player.score)")
+                                .font(.subheadline)
+                                .fontWeight(.bold)
+                                .foregroundColor(player.id == winner?.id ? Color(hex: "4ade80") : .white.opacity(0.6))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                
+                Divider()
+                    .background(Color.white.opacity(0.1))
+                    .padding(.horizontal, 20)
+                
+                // Best word with Scrabble tiles
+                if let best = bestWord {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color(hex: "fbbf24"))
+                            Text("BEST WORD")
+                                .font(.system(size: 10, weight: .bold))
+                                .tracking(1)
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                        
+                        // Scrabble tiles
+                        HStack(spacing: 3) {
+                            ForEach(Array(best.word.enumerated()), id: \.offset) { _, letter in
+                                ShareTileView(letter: letter)
+                            }
+                        }
+                        
+                        Text("\(best.points) points by \(best.player)")
+                            .font(.caption2)
+                            .foregroundColor(Color(hex: "4ade80"))
+                    }
+                    .padding(.vertical, 4)
+                }
+                
+                Divider()
+                    .background(Color.white.opacity(0.1))
+                    .padding(.horizontal, 20)
+                
+                // Game stats row
+                HStack(spacing: 0) {
+                    // Longest word
+                    if let longest = longestWord {
+                        VStack(spacing: 4) {
+                            Image(systemName: "textformat.size")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(hex: "60a5fa"))
+                            Text(longest.word)
+                                .font(.system(size: 13, weight: .bold, design: .serif))
+                                .foregroundColor(.white)
+                            Text("\(longest.length) letters")
+                                .font(.caption2)
+                                .foregroundColor(Color(hex: "60a5fa"))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    
+                    // Total turns
+                    VStack(spacing: 4) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(hex: "a78bfa"))
+                        Text("\(totalTurns)")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                        Text("turns")
+                            .font(.caption2)
+                            .foregroundColor(Color(hex: "a78bfa"))
+                    }
+                    .frame(maxWidth: .infinity)
+                    
+                    // Players count
+                    VStack(spacing: 4) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(hex: "f472b6"))
+                        Text("\(players.count)")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                        Text("players")
+                            .font(.caption2)
+                            .foregroundColor(Color(hex: "f472b6"))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+            }
+            .background(Color(hex: "0f0f1a"))
+        }
+        .frame(width: 360, height: 480)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+}
+
+// MARK: - Share Tile View (mini Scrabble tile for share card)
+
+struct ShareTileView: View {
+    let letter: Character
+    
+    var letterPoints: Int {
+        let pointValues: [Character: Int] = [
+            "A": 1, "B": 3, "C": 3, "D": 2, "E": 1, "F": 4, "G": 2, "H": 4,
+            "I": 1, "J": 8, "K": 5, "L": 1, "M": 3, "N": 1, "O": 1, "P": 3,
+            "Q": 10, "R": 1, "S": 1, "T": 1, "U": 1, "V": 4, "W": 4, "X": 8,
+            "Y": 4, "Z": 10
+        ]
+        return pointValues[Character(letter.uppercased())] ?? 0
+    }
+    
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: "f5e6d3"), Color(hex: "e8d5b7")],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 24, height: 24)
+                .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 1)
+            
+            Text(String(letter).uppercased())
+                .font(.system(size: 14, weight: .bold, design: .serif))
+                .foregroundColor(Color(hex: "2d2d2d"))
+                .frame(width: 24, height: 24)
+            
+            Text("\(letterPoints)")
+                .font(.system(size: 6, weight: .bold))
+                .foregroundColor(Color(hex: "2d2d2d"))
+                .padding(2)
+        }
+    }
+}
+
+// MARK: - Share Sheet View
+
+struct ShareSheetView: View {
+    @Environment(\.dismiss) var dismiss
+    let image: UIImage
+    let winner: Player?
+    let isTie: Bool
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color(hex: "1a1a2e").ignoresSafeArea()
+                
+                VStack(spacing: 24) {
+                    // Preview of the share image
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxHeight: 400)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+                    
+                    Text("Share your victory!")
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.7))
+                    
+                    // Share buttons
+                    VStack(spacing: 12) {
+                        // Instagram Stories button
+                        Button(action: shareToInstagramStories) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "camera.filters")
+                                    .font(.system(size: 20))
+                                Text("Share to Instagram Stories")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(hex: "833ab4"), Color(hex: "fd1d1d"), Color(hex: "fcb045")],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                        
+                        // General share button
+                        Button(action: shareGeneral) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 20))
+                                Text("More Options")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white.opacity(0.8))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                        
+                        // Save to Photos
+                        Button(action: saveToPhotos) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "square.and.arrow.down")
+                                    .font(.system(size: 20))
+                                Text("Save to Photos")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white.opacity(0.6))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                }
+                .padding(.vertical, 20)
+            }
+            .navigationTitle("Share Results")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .foregroundColor(Color(hex: "60a5fa"))
+                }
+            }
+            .toolbarBackground(Color(hex: "1a1a2e"), for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+        }
+    }
+    
+    func shareToInstagramStories() {
+        guard let urlScheme = URL(string: "instagram-stories://share?source_application=com.scorbble.app") else {
+            // Instagram not installed, fall back to general share
+            shareGeneral()
+            return
+        }
+        
+        if UIApplication.shared.canOpenURL(urlScheme) {
+            // Prepare background image data
+            guard let imageData = image.pngData() else { return }
+            
+            let pasteboardItems: [String: Any] = [
+                "com.instagram.sharedSticker.backgroundImage": imageData,
+                "com.instagram.sharedSticker.backgroundTopColor": "#1a1a2e",
+                "com.instagram.sharedSticker.backgroundBottomColor": "#16213e"
+            ]
+            
+            let pasteboardOptions: [UIPasteboard.OptionsKey: Any] = [
+                .expirationDate: Date().addingTimeInterval(300)
+            ]
+            
+            UIPasteboard.general.setItems([pasteboardItems], options: pasteboardOptions)
+            
+            UIApplication.shared.open(urlScheme, options: [:]) { success in
+                if success {
+                    HapticManager.success()
+                }
+            }
+        } else {
+            // Instagram not installed
+            shareGeneral()
+        }
+    }
+    
+    func shareGeneral() {
+        let activityVC = UIActivityViewController(
+            activityItems: [image],
+            applicationActivities: nil
+        )
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootViewController = windowScene.windows.first?.rootViewController {
+            // Find the topmost presented view controller
+            var topController = rootViewController
+            while let presented = topController.presentedViewController {
+                topController = presented
+            }
+            
+            // For iPad
+            if let popover = activityVC.popoverPresentationController {
+                popover.sourceView = topController.view
+                popover.sourceRect = CGRect(x: topController.view.bounds.midX, y: topController.view.bounds.midY, width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
+            
+            topController.present(activityVC, animated: true)
+        }
+    }
+    
+    func saveToPhotos() {
+        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+        HapticManager.success()
     }
 }
 
