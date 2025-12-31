@@ -1623,28 +1623,32 @@ struct GameShareCard: View {
             .frame(height: 200)
             
             // Stats section - more room
-            VStack(spacing: 14) {
-                // All player scores
-                HStack(spacing: 10) {
+            VStack(spacing: 12) {
+                // Section header
+                Text("FINAL STANDINGS")
+                    .font(.system(size: 9, weight: .bold))
+                    .tracking(1.5)
+                    .foregroundColor(.white.opacity(0.4))
+                    .padding(.top, 12)
+                
+                // All player scores - compact
+                HStack(spacing: 8) {
                     ForEach(players.sorted(by: { $0.score > $1.score })) { player in
-                        VStack(spacing: 4) {
+                        VStack(spacing: 2) {
                             Text(player.emoji)
-                                .font(.system(size: 22))
+                                .font(.system(size: 18))
                             Text(player.name)
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                                .foregroundColor(.white.opacity(0.8))
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(.white.opacity(0.7))
                                 .lineLimit(1)
                             Text("\(player.score)")
-                                .font(.subheadline)
-                                .fontWeight(.bold)
-                                .foregroundColor(player.id == winner?.id ? Color(hex: "4ade80") : .white.opacity(0.6))
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(player.id == winner?.id ? Color(hex: "4ade80") : .white.opacity(0.5))
                         }
                         .frame(maxWidth: .infinity)
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 16)
                 
                 Divider()
                     .background(Color.white.opacity(0.1))
@@ -1728,7 +1732,7 @@ struct GameShareCard: View {
                     .frame(maxWidth: .infinity)
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+                .padding(.bottom, 24)
             }
             .background(Color(hex: "0f0f1a"))
         }
